@@ -8,8 +8,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import pytest
-
 from traust.cli.build_cumulative import derive_disposition
 from traust.cli.emit_triage_ledger_events import (
     build_events,
@@ -370,7 +368,6 @@ class TestMergePrecedence(unittest.TestCase):
         self.assertNotIn("fp_overridden", d)
 
 
-@pytest.mark.requires_ledger
 class TestCLIEndToEnd(unittest.TestCase):
     def test_emit_append_idempotent_and_layer_valid(self):
         import subprocess
@@ -413,6 +410,8 @@ class TestCLIEndToEnd(unittest.TestCase):
                 str(tmp / "lint.json"),
                 "--recorded-at",
                 RECORDED,
+                "--findings-root",
+                str(tmp),
             ]
             r1 = subprocess.run(cmd, capture_output=True, text=True)
             self.assertEqual(r1.returncode, 0, r1.stderr)

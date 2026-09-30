@@ -21,9 +21,14 @@ Rules:
   - `verify` exits 1 on any mismatch or baselined-finding deletion;
     'corrected' drift is a warning with a --rebaseline hint.
 
+  - A rebaseline overwrites a signed hash, so it goes through a ledger
+    restatement: the prior hash, the verified actor, a ticket and a rationale
+    are recorded in the layer (and the report digest is restated with it).
+
 Usage:
     python3 harnessing/4-triage/track-findings/scripts/baseline_claims.py \
-        record <audit.json> <layer.json> [--rebaseline ID ...]
+        record <audit.json> <layer.json> \
+        [--rebaseline ID ... --ticket TICKET --rationale TEXT]
     python3 harnessing/4-triage/track-findings/scripts/baseline_claims.py \
         verify <audit.json> <layer.json>
     python3 harnessing/4-triage/track-findings/scripts/baseline_claims.py sweep <findings-root>
@@ -45,6 +50,7 @@ from pathlib import Path
 
 from traust_engine import HarnessEngine
 from traust_engine.assets import harness_version as _engine_harness_version
+from traust_engine.ledger import report_sha256
 from traust_engine.reporting.validate import compute_claim_hash
 
 from traust.context import add_config_home_arg, load_engine
@@ -84,12 +90,27 @@ def _record_into(audit: dict, layer: dict, rebaseline: set[str]):
 
 
 def record(
-    audit_path: Path, layer_path: Path, rebaseline: set[str], engine: HarnessEngine | None = None
+    audit_path: Path,
+    layer_path: Path,
+    rebaseline: set[str],
+    engine: HarnessEngine | None = None,
+    *,
+    ticket: str | None = None,
+    rationale: str | None = None,
 ) -> int:
     audit = _load(audit_path, "audit report")
     layer = _load(layer_path, "layer")
+    metadata = layer.get("metadata") or {}
+    pinned = dict(metadata.get("claim_hashes") or {})
+    pinned_report = metadata.get("audit_report_sha256")
     added, rebaselined, refused = _record_into(audit, layer, rebaseline)
     hashes = layer["metadata"]["claim_hashes"]
+
+    if rebaselined and not (ticket and rationale):
+        refused.extend(
+            (fid, "--rebaseline rewrites a signed hash: pass --ticket and --rationale")
+            for fid in rebaselined
+        )
 
     if refused:
         for fid, why in refused:
@@ -104,8 +125,29 @@ def record(
 
     ledger = (engine or load_engine()).ledger.service(data_dir=layer_path.parent)
 
-    if added or rebaselined:
-        ledger.patch_layer_file(layer_path, {"claim_hashes": hashes}, sign=False)
+    if added:
+        ledger.patch_layer_file(
+            layer_path, {"claim_hashes": {fid: hashes[fid] for fid in added}}, sign=False
+        )
+    if rebaselined:
+        ledger.restate(
+            layer_path,
+            target="claim_hashes",
+            before={fid: pinned[fid] for fid in rebaselined},
+            after={fid: hashes[fid] for fid in rebaselined},
+            ticket=ticket,
+            rationale=rationale,
+        )
+        report_digest = report_sha256(str(audit_path))
+        if pinned_report and pinned_report != report_digest:
+            ledger.restate(
+                layer_path,
+                target="audit_report_sha256",
+                before=pinned_report,
+                after=report_digest,
+                ticket=ticket,
+                rationale=rationale,
+            )
 
     digest_changed = ledger.stamp_report_file(layer_path, audit_path, sign=False)
     print(
@@ -273,8 +315,11 @@ def main(argv=None) -> int:
                 default=[],
                 metavar="ID",
                 help="Finding id whose 'corrected' revision may "
-                "overwrite its recorded hash (repeatable).",
+                "overwrite its recorded hash (repeatable). Recorded as a ledger "
+                "restatement; requires --ticket and --rationale.",
             )
+            sp.add_argument("--ticket", help="Change record authorising a --rebaseline")
+            sp.add_argument("--rationale", help="Why the finding's claim was revised")
     sp = sub.add_parser("sweep")
     sp.add_argument("root", help="Findings tree to walk (e.g. analysis-results/findings)")
     args = ap.parse_args(argv)
@@ -283,7 +328,14 @@ def main(argv=None) -> int:
         return sweep(Path(args.root), engine=engine)
     audit, layer = Path(args.audit), Path(args.layer)
     if args.cmd == "record":
-        return record(audit, layer, set(args.rebaseline), engine=engine)
+        return record(
+            audit,
+            layer,
+            set(args.rebaseline),
+            engine=engine,
+            ticket=args.ticket,
+            rationale=args.rationale,
+        )
     return verify(audit, layer)
 
 

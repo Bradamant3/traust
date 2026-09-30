@@ -1,16 +1,26 @@
 # Runtime locations for this deployment ($TRAUST_CONFIG_HOME/locations.yaml).
-# Set only the paths you use. Unset keys are omitted; install_traust --doctor
-# lists fields still empty.
-#
-# workspace: /path/to/workspace
-# analysis_results: /path/to/analysis-results
-# progress_tracker: /path/to/progress-tracker
-# inputs: /path/to/repository-inventory   # the inventories the graphs and dashboards read (default: <workspace>/inputs)
-# feeds_cache: /path/to/feeds-cache
-# portfolio_graph: /path/to/portfolio-graph.db
-# gitleaks_config: /path/to/gitleaks.toml
-# opengrep_rules: /path/to/opengrep-rule-pack
-# product_definitions: https://your-product-registry.example/products.json
-# sarif_tool_uri: https://your-org.example/harness
+# Fill in the values you use. An empty value is unset: features that need it
+# fail loudly, and install_traust --doctor lists it. Paths may be absolute or
+# relative to $TRAUST_CONFIG_HOME.
 
-{}
+workspace: ""            # e.g. /srv/traust/workspace
+analysis_results: ""     # e.g. /srv/traust/analysis-results, or s3://example-bucket/analysis-results
+progress_tracker: ""     # e.g. /srv/traust/progress-tracker
+inputs: ""               # e.g. /srv/traust/workspace/inputs (default: <workspace>/inputs)
+feeds_cache: ""          # e.g. /srv/traust/feeds-cache
+portfolio_graph: ""      # e.g. /srv/traust/portfolio-graph.db (default: <analysis_results>/graph/portfolio-graph.db)
+rule_drafts: ""          # e.g. /srv/traust/rule-drafts (default: <progress_tracker>/metrics/rule-mining/rule-drafts)
+gitleaks_config: ""      # e.g. /srv/traust/config/gitleaks.toml (default: bundled)
+opengrep_rules: ""       # e.g. /srv/traust/config/opengrep-rules (default: bundled)
+product_definitions: ""  # e.g. https://products.example.com/products.json
+sarif_tool_uri: ""       # e.g. https://harness.example.com
+
+# Object storage: set analysis_results to an s3:// URI and install
+# traust-engine[s3]. Connection settings and credentials never go in this file;
+# they come from the environment: the standard AWS chain (env vars,
+# AWS_PROFILE, workload identity), plus for S3-compatible stores (MinIO, ODF,
+# Ceph RGW):
+#   HARNESS_S3_ENDPOINT_URL=https://s3.example.com:9000
+#   HARNESS_S3_REGION=us-east-1
+#   HARNESS_S3_CA_BUNDLE=/etc/pki/tls/certs/ca-bundle.crt
+#   HARNESS_S3_PATH_STYLE=1

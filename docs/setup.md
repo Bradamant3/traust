@@ -330,6 +330,11 @@ pytest-native share of the suite). When the environment has no operational
 config, the suite points `TRAUST_CONFIG_HOME` at a checked-in template copy
 and skips the live smokes. A clean run shows zero errors.
 
+Ledger writes need a verified identity. The suite provisions an isolated local
+identity by itself: no OIDC login is needed, and your
+`~/.config/traust-ledger` is never read. See
+[CONTRIBUTING.md → Ledger auth in tests](../CONTRIBUTING.md#ledger-auth-in-tests).
+
 ## 8. Validate and render a report
 
 ```bash

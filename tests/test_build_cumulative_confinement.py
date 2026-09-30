@@ -10,8 +10,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pytest
-
 HARNESS = Path(__file__).resolve().parents[1]
 
 
@@ -73,7 +71,6 @@ def test_refuses_a_layer_outside_the_declared_root(tmp_path):
     assert "outside the allowed root" in (r.stdout + r.stderr)
 
 
-@pytest.mark.requires_ledger
 def test_accepts_a_layer_inside_the_tree(tmp_path):
     tree = tmp_path / "findings" / "repo"
     tree.mkdir(parents=True)
