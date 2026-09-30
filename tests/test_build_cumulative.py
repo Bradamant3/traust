@@ -8,7 +8,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import pytest
 from traust_engine.ledger import compute_event_id
 
 from traust.cli.build_cumulative import (
@@ -460,7 +459,7 @@ class TestBuildCumulative(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             p = Path(td) / "test-findings-layer.json"
             p.write_text(json.dumps(layer), encoding="utf-8")
-            client = LedgerClient(token="test-token", data_dir=td)
+            client = LedgerClient(data_dir=td)
             client.sign("test-findings-layer")
             meta = json.loads(p.read_text())["metadata"]
         self.assertEqual(meta["merkle_epoch"], 0)
@@ -517,7 +516,6 @@ class TestRenderMarkdown(unittest.TestCase):
         self.assertNotIn("## Event History", md)
 
 
-@pytest.mark.requires_ledger
 class TestContainerBaselineCli(unittest.TestCase):
     """Container-audit baselines keep their full stem in the CLI's
     default output naming: the report shares a directory with the code
@@ -547,6 +545,8 @@ class TestContainerBaselineCli(unittest.TestCase):
                 str(layer_p),
                 "--generated-at",
                 GENERATED_AT,
+                "--findings-root",
+                str(base),
             ]
             try:
                 rc = bc.main()

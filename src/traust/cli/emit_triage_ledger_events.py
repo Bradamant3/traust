@@ -408,7 +408,7 @@ def append_to_layer(
         report_path=audit_path,
         queue_items=out.get("needs_review"),
     )
-    appended = len(result.event_ids) if result.event_ids else submitted
+    appended = len(result.event_ids) if result.event_ids is not None else submitted
     return {
         "appended": appended,
         "duplicates_skipped": submitted - appended,

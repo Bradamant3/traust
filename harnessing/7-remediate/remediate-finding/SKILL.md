@@ -410,7 +410,7 @@ asked to close the loop:
 ## Integrations
 
 **Consumes:** one row of `remediation-manifest.csv` (built by
-`scripts/build_remediation_manifest.py`), which points at
+`harnessing/7-remediate/remediate-finding/scripts/build_remediation_manifest.py`), which points at
 `<repo>-triage.json` from `/triage`, `<repo>-security-audit.json` from
 `/secure-code-audit`, and the latest `*-validation.json` from the stage-5
 validation skills (`/validate-operator-live`, `/validate-findings`); optionally
@@ -423,7 +423,7 @@ through `/track-findings`. The report carries two independent proof channels:
 
 | Channel | Written by | Kinds / values |
 |---|---|---|
-| `evidence[]` (`patch_evidence`) | Phase 4b `run_mutation.sh` → `scripts/mutation_evidence.py`; Phase 4c `harnessing/7-remediate/property-test/run_property.sh` → `harnessing/7-remediate/property-test/scripts/property_evidence.py` | `mutation` (Go only), `property` (Python only) |
+| `evidence[]` (`patch_evidence`) | Phase 4b `run_mutation.sh` → `harnessing/7-remediate/remediate-finding/scripts/mutation_evidence.py`; Phase 4c `harnessing/7-remediate/property-test/run_property.sh` → `harnessing/7-remediate/property-test/scripts/property_evidence.py` | `mutation` (Go only), `property` (Python only) |
 | `revalidation` | Phase 7 | live-validation before/after verdicts |
 
 `/verify-remediation` adds a third kind, `scanner_differential`, to the
