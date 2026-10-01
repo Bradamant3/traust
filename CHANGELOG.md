@@ -2,6 +2,12 @@
 
 All notable changes to Traust are documented here.
 
+## [0.13.1]
+
+- **Released pins.** traust-engine `v0.18.0` and traust-ledger `v0.8.3`
+  replace the fork commits 0.13.0 merged with. They are the same trees, so
+  nothing else changes.
+
 ## [0.13.0]
 
 - **Threats are rated with the OWASP Risk Rating Methodology.** This
