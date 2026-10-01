@@ -26,8 +26,8 @@ dependencies = [
     # depending on it. Some more restructuring will help alleviate this pain later.
     # Route these through LedgerService and drop this line. countersign.py is
     # itself a candidate for removal, which retires most of the callers.
-    "traust-ledger>=0.8.4",
-    "traust-contracts>=0.46.0",
+    "traust-ledger>=0.8.5",
+    "traust-contracts>=0.47.0",
     "jsonschema",
     "referencing",
     "pyyaml",
@@ -52,9 +52,9 @@ traust = "traust.cli.__main__:main"
 dev = ["ruff>=0.6", "pytest-xdist>=3"]
 
 [tool.uv.sources]
-traust-contracts = { git = "https://github.com/traust-security/traust-contracts.git", tag = "v0.46.0" }
-traust-engine = { git = "https://github.com/traust-security/traust-engine.git", rev = "01b049bfc48ea40d88febf6b52df22baceae1c69" }
-traust-ledger = { git = "https://github.com/traust-security/traust-ledger.git", rev = "b556358ee29167a5f06e40114898c08172b02c63" }
+traust-contracts = { git = "https://github.com/traust-security/traust-contracts.git", rev = "c1c22165f30287c3b83e56a1830d275a1a14bc41" }
+traust-engine = { git = "https://github.com/traust-security/traust-engine.git", rev = "7d55152d3660936ff1b745aeee60aab1a15eee2a" }
+traust-ledger = { git = "https://github.com/traust-security/traust-ledger.git", rev = "bb566af52597befcdc1ce496f7ca4694279a6d27" }
 
 # Multi-skill CLIs live under src/traust/; harnessing/<skill>/ for single-skill
 # scripts. Install for deps + importable path helpers.

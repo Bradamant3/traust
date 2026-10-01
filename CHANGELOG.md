@@ -8,6 +8,8 @@ All notable changes to Traust are documented here.
   lossless: the update history sits inside section 7 (so a rated model with
   history passes lint), optional asset columns are kept, and attack scenarios
   render as prose.
+- traust-contracts 0.47.0 (every threat-model section defined) and
+  traust-ledger 0.8.5.
 
 ## [0.13.2]
 
