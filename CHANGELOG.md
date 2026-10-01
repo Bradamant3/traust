@@ -2,6 +2,15 @@
 
 All notable changes to Traust are documented here.
 
+## [0.13.3]
+
+- traust-engine 0.18.2. Rendering a threat model from its JSON is now
+  lossless: the update history sits inside section 7 (so a rated model with
+  history passes lint), optional asset columns are kept, and attack scenarios
+  render as prose.
+- traust-contracts 0.47.0 (every threat-model section defined) and
+  traust-ledger 0.8.5.
+
 ## [0.13.2]
 
 - traust-contracts v0.46.0 (OWASP risk ratings in the storage `threat`
