@@ -2,6 +2,11 @@
 
 All notable changes to Traust are documented here.
 
+## [0.13.2]
+
+- traust-contracts v0.46.0 (OWASP risk ratings in the storage `threat`
+  table), traust-ledger 0.8.4 and traust-engine 0.18.1. Nothing else changes.
+
 ## [0.13.1]
 
 - **Released pins.** traust-engine `v0.18.0` and traust-ledger `v0.8.3`
