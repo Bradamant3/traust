@@ -143,11 +143,60 @@ def add_render_args(ap) -> None:
         type=Path,
         help="Write markdown to file (default: stdout)",
     )
+    ap.add_argument(
+        "--allow-section-loss",
+        action="store_true",
+        help="Threat models: overwrite --out even if the new rendering empties or "
+        "drops a section the existing file has (an intended removal)",
+    )
+
+
+def _section_bodies(markdown: str) -> dict[str, bool]:
+    """`## ` section heading -> whether it carries any content.
+
+    A section counts as empty when it holds nothing but a table header and
+    separator, or the renderer's `_not recorded_` / `_none_` placeholders.
+    """
+    from traust_engine.reporting.lint import parse_sections
+
+    out = {}
+    for heading, body in parse_sections(markdown):
+        lines = [line.strip() for line in body if line.strip()]
+        rows = [line for line in lines if line.startswith("|")]
+        prose = [line for line in lines if not line.startswith("|")]
+        has_rows = len(rows) > 2  # header + separator + at least one row
+        has_prose = any(line not in ("_not recorded_", "_none_") for line in prose)
+        out[heading] = has_rows or has_prose
+    return out
+
+
+def lost_sections(existing: str, rendered: str) -> list[str]:
+    """Sections the existing threat model fills that the new rendering drops
+    or empties. Rendering a threat model whose JSON is missing members the
+    Markdown has would otherwise erase them silently -- which is what the
+    2026-09-20 backfill's three-member JSON did on the first write-back."""
+    before, after = _section_bodies(existing), _section_bodies(rendered)
+    return [h for h, filled in before.items() if filled and not after.get(h, False)]
 
 
 def call_render(engine, args) -> int:
     md = engine.reporting.render(args.report)
     if args.out:
+        if (
+            args.report.name.endswith("-threat-model.json")
+            and args.out.exists()
+            and not args.allow_section_loss
+        ):
+            lost = lost_sections(args.out.read_text(encoding="utf-8"), md)
+            if lost:
+                print(
+                    f"render: refusing to overwrite {args.out}: the new rendering drops "
+                    f"or empties {lost}. The JSON is missing what the Markdown has -- "
+                    "complete the JSON first, or pass --allow-section-loss if the "
+                    "removal is intended.",
+                    file=sys.stderr,
+                )
+                return 1
         args.out.write_text(md, encoding="utf-8")
         print(f"render: wrote {args.out}")
     else:
