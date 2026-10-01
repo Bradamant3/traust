@@ -65,27 +65,37 @@ run the linter to find them, fix, and rebuild. It never edits a model.
 `progress-tracker/metrics/dashboards/threat-register/threat-register.{json,md,html}` (legacy fallback `<root>/threat-register/` when the progress-tracker sibling is absent). Each run also appends a `threat-register` snapshot (threat models, total/unmitigated/partially-mitigated/open threats, quick wins) to the central hash-chained metrics ledger — no-op when unchanged — and injects a trend-vs-previous banner into the md/html, so threat trends are visible per-register and in Executive-Trends:
 
 - **json** — full register (every threat with key, product, model,
-  actors, surface, asset, impact, likelihood, status, controls, evidence,
-  rank score) plus totals, per-product roll-up, and quick wins.
-- **md** — leadership summary: status/impact totals, top-25 open threats,
+  actors, surface, asset, severity, severity_source, likelihood, impact,
+  and for rated threats the scores and impact basis, status, controls,
+  evidence) plus totals, per-product roll-up, and quick wins.
+- **md** — leadership summary: status/severity totals, how many threats are
+  rated with OWASP, top-25 open threats,
   top quick wins, products by open-threat exposure.
 - **html** — self-contained dashboard, no external assets.
 
 The md/html outputs embed the standard population block (roots, unit,
 filters, denominator) for cross-dashboard reconciliation, and include an
-Ownership cuts table splitting models/threats/open/open-critical+existential
+Ownership cuts table splitting models/threats/open/open-critical
 between owned (`findings/`, Hybrid Platforms) and upstream (`oss-findings/`)
 — upstream is never folded into the owned cut.
 
-**Rank score** is a fixed ordinal product (impact weight × likelihood
-weight, documented in `meta.scoring`); it orders rows and nothing else —
-it is not CVSS and never feeds the portfolio risk index, which remains
-the ledger's job (`docs/risk-rating-methodology.md`). Statuses are reported
-exactly as the models state them; the register draws no conclusions.
+**Ranking.** Threats are ranked by their **OWASP Risk Rating Methodology**
+severity (<https://owasp.org/www-community/OWASP_Risk_Rating_Methodology>),
+then impact score, then likelihood score (`meta.scoring`). A threat whose
+model hasn't been re-rated yet still carries legacy labels. It is ordered
+by a fixed crosswalk onto the OWASP severity table
+(`traust_engine.reporting.threat_rating`) and marked
+`severity_source: legacy-crosswalk`, shown as "(legacy crosswalk)". The
+crosswalk orders rows and is never reported as a rating. Products are
+ordered by their counts of open critical, then high, and so on: counts,
+never a weighted sum. None of this is CVSS, and none of it feeds the
+portfolio risk index, which remains the ledger's job
+(`docs/risk-rating-methodology.md`). Statuses are reported exactly as the
+models state them; the register draws no conclusions.
 
 **Quick wins** = section 8 mitigations with `closes_class: yes` and
-effort XS/S that cover at least one `unmitigated` high/critical/
-existential threat — the highest-leverage engineering asks in the fleet.
+effort XS/S that cover at least one `unmitigated` threat of high or
+critical severity — the highest-leverage engineering asks in the fleet.
 
 ## Tenant-isolation columns (optional; multi-tenant models only)
 
@@ -110,7 +120,7 @@ carries boundaries, the JSON gains a `tenant_boundaries` list (and the md
 a "Weakest tenant boundaries" table), keyed `<product>/<model-slug>:<IF-n>`
 and ordered weakest-first: failed (`no`) dimensions weigh 2, `partial`
 weighs 1, ties broken by interface complexity and tagged open threats.
-Like the rank score this ordering is an aid, not a conclusion — dimension
+Like the threat ranking, this ordering is an aid, not a conclusion — dimension
 results are reported exactly as the models state them, and the evidence
 lives in the linked isolation review, never here.
 

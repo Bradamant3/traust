@@ -83,7 +83,7 @@ Bound the re-analysis with git, not intuition:
    evidence too, weighted by assurance exactly as in `bootstrap.md`
    ("Harness pipeline artifacts as vuln evidence").
 
-### R3. Re-score only what moved
+### R3. Re-rate only what moved
 
 For each **surface-relevant** change, read the code and decide:
 
@@ -92,7 +92,8 @@ For each **surface-relevant** change, read the code and decide:
 - **Removed component**: threats whose `surface` no longer exists → stale.
 - **Changed controls**: a mitigation from section 8 now implemented (grep
   for it — rate limiter middleware, parameterized queries, size caps), or a
-  control removed → likelihood/status shifts. Cite the code you read; if
+  control removed → the rating factors that control acts on, or the status,
+  shift. Cite the code you read; if
   the evidence is a resolved pipeline finding, cite its canonical ID
   (`{REPO_SLUG}-{SHORTSHA}-{NNN}`), the same reference the disposition
   ledger uses.
@@ -102,6 +103,17 @@ For each **surface-relevant** change, read the code and decide:
 Use only the schema enums when proposing changes — a stale threat becomes a
 section 5 row with a reason; a mitigated threat gets `status: mitigated`;
 never invent new verdict vocabulary.
+
+### R3b. Rate threats the model hasn't rated yet
+
+If any threat lacks a `risk_rating` (it still carries legacy
+`impact`/`likelihood` labels), propose an OWASP Risk Rating Methodology
+rating for **every** such threat, not only the ones that moved. Score the
+factors from the model, the current code and the evidence, following the
+schema.md [Scoring guide](schema.md#scoring-guide), and give a reason for
+each factor that evidence or a control moved. Don't derive the factors from
+the legacy labels; they were never calibrated. These ratings are proposed
+changes like any other: the report lists them, and `update` writes them.
 
 ### R4. Report
 
@@ -117,12 +129,15 @@ the resolved model's path with `-threat-model.md` replaced by
    existing).
 3. **Stale threats** — id, title, why (component removed, class-level
    mitigation landed).
-4. **Changed risk** — id, old → new impact/likelihood/status, the code or
-   pipeline evidence.
-5. **Mitigation status** — section 8 rows with implemented / partial /
+4. **Changed risk** — id, old → new severity (with the factors that moved)
+   or status, and the code or pipeline evidence.
+5. **Ratings to adopt** (only when R3b found unrated threats) — for each,
+   the proposed severity, likelihood and impact, and the factor scores with
+   their reasons.
+6. **Mitigation status** — section 8 rows with implemented / partial /
    not-found evidence.
-6. **Invalidated assumptions** — section 6 items now answerable.
-7. **Recommended actions** — prioritized.
+7. **Invalidated assumptions** — section 6 items now answerable.
+8. **Recommended actions** — prioritized.
 
 ### R5. Offer to apply (interactive default)
 
@@ -158,15 +173,21 @@ the accepted changes as feedback. On no, stop — the review stands alone.
 - **Only touch what the feedback names.** "Add a threat about the Redis
   cache" re-analyzes Redis-adjacent code only; it does not re-run
   discovery on the rest of the tree.
+- **One exception: the rating migration.** When a pass writes a model that
+  still has threats without a `risk_rating`, it rates all of them (review
+  R3b) and drops their legacy `impact`/`likelihood` labels, so the model
+  moves to the OWASP method in one step. Record it in the update history
+  ("rated T1-T9 with the OWASP Risk Rating Methodology").
 
 ### U2. Apply
 
 Parse the feedback into per-threat operations (remove/retire, add, modify
 field, re-rank). For additions, read the relevant code first — new rows get
 the same evidence discipline as bootstrap Stage 3 (evidence = confirmed
-vuln references only; likelihood from the scoring guide). Re-sort section 4
-by (impact desc, likelihood desc) — sorting is presentation, not
-renumbering. If the model has a section 9, refresh it: retire scenarios for
+vuln references only; the rating from the scoring guide). Run
+`python3 -m traust.cli reporting rate-threats` on the JSON, then re-sort
+section 4 by severity, impact score and likelihood score, all descending.
+Sorting is presentation, not renumbering. If the model has a section 9, refresh it: retire scenarios for
 retired threats, and add/replace scenarios so it still covers the top 3-5.
 
 ### U3. Validate and hand back

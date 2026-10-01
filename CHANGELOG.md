@@ -2,6 +2,41 @@
 
 All notable changes to Traust are documented here.
 
+## [0.13.0]
+
+- **Threats are rated with the OWASP Risk Rating Methodology.** This
+  replaces the impact/likelihood labels and 1-2-4-8-16 weights inherited
+  from the upstream skill, which weren't a published standard. Pins
+  traust-contracts v0.45.0 (`risk_rating` on threats), traust-ledger 0.8.3
+  and traust-engine 0.18.0; the engine and ledger are pinned to their open-PR
+  commits until they're tagged.
+  - `/threat-model`: the schema.md scoring guide restates the method in
+    original wording, citing OWASP. The author scores the sixteen 0-9 factors
+    with a reason for each one that evidence, a control or the owner moved.
+    Bootstrap rates on the technical basis; interview rates on the business
+    basis when the owner can answer. Section 4 gains
+    `severity | likelihood | impact`, and a new section 11 lists the factors.
+    bootstrap, interview, review, update and pr now speak the new vocabulary.
+  - New `traust reporting rate-threats <model>.json` fills each rating's
+    scores, levels and severity from its factors (`--check` reports without
+    writing). `validate` rejects a rating that disagrees with its factors.
+  - Existing models move over at their next update: any pass that writes a
+    model rates every threat still carrying legacy labels (review R3b,
+    update U1). Nothing is re-rated now.
+  - `/threat-register` ranks by OWASP severity, then impact and likelihood
+    score. It orders legacy threats by a labelled crosswalk (never reported
+    as a rating) and orders products by open-severity counts rather than a
+    weighted sum. It reports how many threats are rated. `score`,
+    `score_sum`, `max_score` and `open_critical_plus` are replaced by
+    `severity`, `severity_source`, `open_by_severity`, `max_severity` and
+    `open_critical`. Quick wins now cover unmitigated threats of high or
+    critical severity.
+  - Crown-jewel tiers: a rated threat's impact component is its OWASP
+    impact score / 9; legacy threats keep their points / 5.
+  - `docs/external-dependencies.md` records the OWASP Risk Rating
+    Methodology (CC-BY-SA-4.0, reimplemented in original wording), and
+    `docs/risk-rating-methodology.md` covers threats.
+
 ## [0.12.0]
 
 - **Pins: contracts 0.44.0, engine 0.17.0, ledger 0.8.2.** Ledger stays a

@@ -33,7 +33,7 @@ python3 -m traust.cli check skill-alignment      # equivalent
 | `metrics` | Metrics & spend | `attribute-spend`, `collect-spend`, `history`, `sla`, `spend` |
 | `portfolio` | Portfolio graph | `artifacts`, `build`, `deps-multi`, `freshness`, `interfaces`, `parsers`, `query`, `stats`, `symbols` |
 | `registry` | Model/product registry | `models`, `products` |
-| `reporting` | Report validation & rendering | `lint`, `render`, `sarif`, `validate` |
+| `reporting` | Report validation & rendering | `lint`, `rate-threats`, `render`, `sarif`, `validate` |
 | `route` | Finding routing | `impact-findings`, `regressions` |
 | `sweep` | Class-generalization sweep | `benchmark`, `collect`, `draft`, `emit`, `mine`, `rule-lane`, `sweep` |
 | `util` | Utility commands | `elf`, `redact`, `safe-exec` |

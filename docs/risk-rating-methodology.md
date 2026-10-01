@@ -111,3 +111,16 @@ measure. The engine still computes both into every trend snapshot, and the
 trends dashboard still shows them as legacy columns beside the OWASP bands,
 so historical series stay comparable; they are no longer the headline and
 are never revised in the append-only metrics ledger.
+
+## Threats
+
+Threat models use the same method at full strength: a threat has no CVSS
+vector to derive factors from, so the author scores all eight likelihood
+factors and the four technical (and, when the owner supplies them, four
+business) impact factors directly. The factor guide is the threat-model
+skill's [Scoring guide](../harnessing/2-threat-model/threat-model/schema.md#scoring-guide);
+the arithmetic is `traust_contracts.v1.risk_rating`, and the rendering and
+lint rules are `traust_engine.reporting.threat_rating`. The threat register
+ranks threats by the resulting severity. Models written before the method
+carry legacy labels until their next update, and are ordered meanwhile by a
+labelled crosswalk that is never reported as a rating.

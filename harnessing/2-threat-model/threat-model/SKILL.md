@@ -60,7 +60,13 @@ a vulnerability, not a threat. A threat ("attacker achieves RCE via untrusted
 media parsing") still stands after every known bug is fixed; a vulnerability
 ("`dr_wav.h:412` doesn't bounds-check `chunk_size`") does not. This skill
 produces threats. Vulnerabilities appear only as **evidence** that raises a
-threat's likelihood score.
+threat's likelihood.
+
+**Rating:** every threat is rated with the **OWASP Risk Rating Methodology**
+(OWASP Foundation, <https://owasp.org/www-community/OWASP_Risk_Rating_Methodology>).
+You score its sixteen 0-9 factors, and the harness derives
+likelihood, impact and severity. The factor guide is the
+[Scoring guide](schema.md#scoring-guide) in `schema.md`.
 
 **Invocation:** `/threat-model [bootstrap-then-interview|bootstrap|interview|review|update|pr] <target-dir> [flags]`
 
@@ -252,7 +258,7 @@ unavailable mid-session):
 |---|---|---|
 | Q1 | What are we working on? | section 1 context, section 2 assets, section 3 entry points |
 | Q2 | What can go wrong? | section 4 threat rows (id, threat, actor, surface, asset) |
-| Q3 | What are we going to do about it? | section 4 impact/likelihood/status/controls; section 5 deprioritized; section 8 recommended mitigations |
+| Q3 | What are we going to do about it? | section 4 risk rating/status/controls; section 5 deprioritized; section 8 recommended mitigations |
 | Q4 | Did we do a good job? | validate ranking, coverage check, section 6 open questions |
 
 > **Control-coverage completeness (all modes; calibrated by the
@@ -306,11 +312,16 @@ schema, then validate and render it with the SAME two commands every
 other artifact uses:
 
 ```bash
+python3 -m traust.cli reporting rate-threats <repo>-threat-model.json
 python3 -m traust.cli reporting validate <repo>-threat-model.json
 python3 -m traust.cli reporting render   <repo>-threat-model.json \
     -o <repo>-threat-model.md
 ```
 
+`rate-threats` fills each `risk_rating`'s scores, levels and severity
+from the factors you scored. Author only the factors, the basis and the
+reasons; `validate` rejects a rating whose derived values disagree with
+its factors.
 `validate` auto-detects `threat-model.schema.json` from the filename;
 `render` dispatches on it. Never hand-author the Markdown, and never
 edit it afterwards — it is a rendering, and the next emission
@@ -331,7 +342,8 @@ scoring guide; the JSON Schema is what your output is checked against.
 
 **A non-zero exit is a defect in the document you just wrote, not a step
 to skip.** The command names every failing path — usually an
-off-contract `status`, `likelihood`, `impact` or `actor` value, a threat
+off-contract `status` or `actor` value, a factor outside 0-9, a rating
+whose derived values weren't filled by `rate-threats`, a threat
 missing a required field, or a `provenance` block without `mode`, `date`
 and `target`. Fix the JSON and re-run. Nothing is written and no
 Markdown is rendered from an invalid artifact; there is no degraded form
@@ -381,7 +393,7 @@ what the schema already caught upstream.
 Then print to the user:
 
 1. The paths to the JSON artifact and its rendered Markdown, and the validate result line.
-2. The top 5 threats by likelihood × impact (id, one-line description, L×I).
+2. The top 5 threats by severity (id, one-line description, severity).
 3. For `bootstrap`: any open questions the code could not answer (these seed a
    later `interview` pass).
 4. For `interview`: any owner statements that could not be verified in code
@@ -397,6 +409,10 @@ Then print to the user:
 - Downstream consumers: `/triage` (threat-model answers shape verifier
   environment/threat context) and the secure-code-audit reports whose
   findings feed threat likelihood as evidence.
+- OWASP Foundation, *OWASP Risk Rating Methodology*,
+  <https://owasp.org/www-community/OWASP_Risk_Rating_Methodology>.
+  Reimplemented in original wording; no text adapted (licence terms:
+  `docs/external-dependencies.md`).
 
 ## Spend declaration (calibration tuple)
 

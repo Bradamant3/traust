@@ -28,14 +28,15 @@ Composition (per the plan: "portfolio-graph fan-in × threat-register tags
                  because fan-in is heavy-tailed (a handful of shared
                  libraries dominate); linear scaling would collapse
                  everything else to ~0.
-    c_threat   = IMPACT_POINTS[max open-threat impact] / 5
-                 over threat-register entries whose status is still open
-                 (unmitigated or partially_mitigated). IMPACT_POINTS is
-                 log2 of the register's own geometric impact weights
-                 {low:1, medium:2, high:4, critical:8, existential:16},
-                 +1 → {1..5}: preserves the register's ordering without
-                 letting one existential threat outweigh everything else
-                 quadratically.
+    c_threat   = max open-threat impact, normalized to 0-1, over
+                 threat-register entries whose status is still open
+                 (unmitigated or partially_mitigated). A threat rated with
+                 the OWASP Risk Rating Methodology contributes its impact
+                 score / 9 (the method's 0-9 scale). A threat not yet
+                 re-rated keeps the legacy points: IMPACT_POINTS[impact] / 5,
+                 where IMPACT_POINTS {low:1 .. existential:5} is the rank of
+                 the legacy label. Impact alone, not severity: blast radius is
+                 the crown-jewel property, and likelihood is not.
     c_priv     = priv_tier / 3, where priv_tier is derived from the
                  operator-priv-profile static inventory (tiers 1-2 of
                  that skill; see _priv_tier() for the exact flag→tier
@@ -124,9 +125,19 @@ DRAFT_MARKER = (
 # part of what the open-question-2 sign-off must ratify.
 WEIGHTS = {"fanin": 0.35, "threat": 0.25, "priv": 0.20, "findings": 0.20}
 
-# log2 of the threat register's own geometric impact weights
-# {low:1, medium:2, high:4, critical:8, existential:16}, +1 → 1..5.
+# Rank of a LEGACY impact label (threats not yet re-rated with OWASP), 1..5.
 IMPACT_POINTS = {"low": 1, "medium": 2, "high": 3, "critical": 4, "existential": 5}
+
+
+def _impact_fraction(threat: dict) -> tuple[float, str | None]:
+    """(0-1 impact, label shown) for one register row: the OWASP impact score
+    out of 9 when rated, else the legacy label's points out of 5."""
+    if threat.get("severity_source") == "owasp" and threat.get("impact_score") is not None:
+        score = float(threat["impact_score"])
+        return score / 9, f"{threat.get('impact')} {score:g}"
+    points = IMPACT_POINTS.get(threat.get("impact"), 0)
+    return points / 5, (threat.get("impact") if points else None)
+
 
 # Register statuses that still count as open risk (its other statuses are
 # mitigated / risk_accepted).
@@ -230,12 +241,12 @@ def load_threats(register_path: Path):
         model = t.get("model") or ""
         repo_dir = model.rsplit("/", 2)[-2] if model.count("/") >= 2 else model
         slug = _slug(repo_dir)
-        row = per.setdefault(slug, {"open_threats": 0, "max_impact": None, "max_points": 0})
+        row = per.setdefault(slug, {"open_threats": 0, "max_impact": None, "max_fraction": 0.0})
         row["open_threats"] += 1
-        pts = IMPACT_POINTS.get(t.get("impact"), 0)
-        if pts > row["max_points"]:
-            row["max_points"] = pts
-            row["max_impact"] = t.get("impact")
+        fraction, label = _impact_fraction(t)
+        if fraction > row["max_fraction"]:
+            row["max_fraction"] = fraction
+            row["max_impact"] = label
     return per, {"threats_total": len(threats), "repos_with_open_threats": len(per)}
 
 
@@ -393,7 +404,7 @@ def score_rows(universe, threats, privs, findings, available):
             comp["threat"] = {
                 "open_threats": th["open_threats"] if th else 0,
                 "max_open_impact": th["max_impact"] if th else None,
-                "normalized": round((th["max_points"] / 5) if th else 0.0, 4),
+                "normalized": round(th["max_fraction"] if th else 0.0, 4),
             }
         if "priv" in weights:
             comp["priv"] = {
@@ -474,7 +485,8 @@ def emit(out_dir: Path, rows, ownership, sources, gaps, weights, tier1_size):
             ),
             "formula": (
                 "score = 100 * sum(w*c)/sum(w); c_fanin=log2-normalized "
-                "dependent-repo count; c_threat=max open-threat impact points/5; "
+                "dependent-repo count; c_threat=max open-threat impact (OWASP "
+                "impact score/9, or legacy impact points/5 until re-rated); "
                 "c_priv=priv tier/3; c_findings=log2-normalized "
                 f"({CRIT_MULT}*crit+high) open at HEAD. See script docstring."
             ),

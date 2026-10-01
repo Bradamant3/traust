@@ -162,6 +162,69 @@ RENDER = OpSpec(
 )
 
 
+def add_rate_threats_args(ap) -> None:
+    ap.add_argument("model", type=Path, help="Path to a <repo>-threat-model.json artifact")
+    ap.add_argument(
+        "--check",
+        action="store_true",
+        help="Report derived values that disagree with their factors; write nothing",
+    )
+
+
+def call_rate_threats(_engine, args) -> int:
+    """Fill each OWASP risk_rating's derived values from its factors.
+
+    The author scores the factors (and optionally the basis and one reason
+    per factor); the means, levels and severity are arithmetic, so this
+    computes them with traust_contracts.v1.risk_rating rather than leaving
+    them to the author. Threats without a risk_rating are left alone.
+    """
+    from traust_contracts.v1 import risk_rating
+
+    document = json.loads(args.model.read_text(encoding="utf-8"))
+    changed, failed = [], []
+    for threat in document.get("threats") or []:
+        rating = threat.get("risk_rating")
+        if not rating:
+            continue
+        tid = threat.get("id", "?")
+        impact = rating.get("impact") or {}
+        try:
+            rebuilt = risk_rating.rate(
+                (rating.get("likelihood") or {}).get("factors") or {},
+                impact.get("technical") or {},
+                impact.get("business"),
+                basis=impact.get("basis"),
+                rationale=rating.get("rationale"),
+            )
+        except ValueError as exc:
+            failed.append(f"{tid}: {exc}")
+            continue
+        if rebuilt != rating:
+            changed.append(tid)
+            threat["risk_rating"] = rebuilt
+    for line in failed:
+        print(f"rate-threats: {line}", file=sys.stderr)
+    if args.check:
+        for tid in changed:
+            print(f"rate-threats: {tid} derived values disagree with its factors")
+        return 1 if (changed or failed) else 0
+    if changed and not failed:
+        args.model.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+    print(
+        f"rate-threats: {len(changed)} rating(s) updated, {len(failed)} error(s)"
+        + (" -- nothing written" if failed else "")
+    )
+    return 1 if failed else 0
+
+
+RATE_THREATS = OpSpec(
+    add_args=add_rate_threats_args,
+    call=call_rate_threats,
+    help="Fill OWASP risk ratings' scores, levels and severity from their factors",
+)
+
+
 def add_sarif_args(ap) -> None:
     ap.add_argument(
         "reports",
