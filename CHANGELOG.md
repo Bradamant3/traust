@@ -4,8 +4,10 @@ All notable changes to Traust are documented here.
 
 ## [0.13.3]
 
-- traust-engine 0.18.2: a threat model's update history renders inside section
-  7, so an OWASP-rated model with an update history passes lint.
+- traust-engine 0.18.2. Rendering a threat model from its JSON is now
+  lossless: the update history sits inside section 7 (so a rated model with
+  history passes lint), optional asset columns are kept, and attack scenarios
+  render as prose.
 
 ## [0.13.2]
 
