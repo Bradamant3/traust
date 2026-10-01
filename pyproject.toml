@@ -7,12 +7,12 @@ name = "traust"
 # version must equal the VERSION file — check_docs_consistency.py
 # version-sync check fails the pre-push when they drift (and fails
 # closed if this field is removed)
-version = "0.13.2"
+version = "0.13.3"
 license = "Apache-2.0"
 description = "AI agent tooling for automated security audits of Red Hat Hybrid Platforms source code"
 requires-python = ">=3.11"
 dependencies = [
-    "traust-engine>=0.18.1",
+    "traust-engine>=0.18.2",
     # TODO: this should not be here. Declared only because a handful of call
     # sites import traust_ledger DIRECTLY instead of going through
     # traust_engine.ledger.LedgerService, which is the intended seam:
@@ -53,7 +53,7 @@ dev = ["ruff>=0.6", "pytest-xdist>=3"]
 
 [tool.uv.sources]
 traust-contracts = { git = "https://github.com/traust-security/traust-contracts.git", tag = "v0.46.0" }
-traust-engine = { git = "https://github.com/traust-security/traust-engine.git", rev = "df5063ac0c9731dc269d54a72ec46b165123eb54" }
+traust-engine = { git = "https://github.com/traust-security/traust-engine.git", rev = "4e4ce1fa2ba90471575be74ded8ed819635a2632" }
 traust-ledger = { git = "https://github.com/traust-security/traust-ledger.git", rev = "b556358ee29167a5f06e40114898c08172b02c63" }
 
 # Multi-skill CLIs live under src/traust/; harnessing/<skill>/ for single-skill

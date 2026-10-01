@@ -2,6 +2,11 @@
 
 All notable changes to Traust are documented here.
 
+## [0.13.3]
+
+- traust-engine 0.18.2: a threat model's update history renders inside section
+  7, so an OWASP-rated model with an update history passes lint.
+
 ## [0.13.2]
 
 - traust-contracts v0.46.0 (OWASP risk ratings in the storage `threat`
