@@ -253,6 +253,48 @@ class TestScoreComposition(Fixture):
         self.assertEqual(payload["meta"]["scored_repos"], 2)
 
 
+class TestOwaspImpact(unittest.TestCase):
+    """A re-rated threat contributes its OWASP impact score out of 9; a
+    legacy one keeps its label's points out of 5."""
+
+    def test_rated_and_legacy_rows(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "threat-register.json"
+            rows = [
+                {
+                    "model": "findings/p/alpha/alpha-threat-model.md",
+                    "status": "unmitigated",
+                    "severity": "high",
+                    "severity_source": "owasp",
+                    "impact": "high",
+                    "impact_score": 7.25,
+                },
+                {
+                    "model": "findings/p/alpha/alpha-threat-model.md",
+                    "status": "unmitigated",
+                    "severity": "medium",
+                    "severity_source": "legacy-crosswalk",
+                    "impact": "medium",
+                },
+                {
+                    "model": "findings/p/beta/beta-threat-model.md",
+                    "status": "partially_mitigated",
+                    "severity": "critical",
+                    "severity_source": "legacy-crosswalk",
+                    "impact": "critical",
+                },
+            ]
+            path.write_text(json.dumps({"meta": {}, "threats": rows}))
+            per, _ = cjt.load_threats(path)
+        self.assertAlmostEqual(per["alpha"]["max_fraction"], 7.25 / 9)
+        self.assertEqual(per["alpha"]["max_impact"], "high 7.25")
+        self.assertEqual(per["alpha"]["open_threats"], 2)
+        self.assertAlmostEqual(per["beta"]["max_fraction"], 4 / 5)
+        self.assertEqual(per["beta"]["max_impact"], "critical")
+
+
 class TestMissingSourceDegradation(Fixture):
     def test_no_threat_register_proceeds_with_gap(self):
         rc = cjt.main(

@@ -299,26 +299,33 @@ weren't in the vuln list. Grep for the same pattern (other format parsers,
 other endpoints calling the same unsafe helper, other size fields multiplied
 without overflow checks). You are not trying to prove these are exploitable;
 you are estimating how much of the surface shares the pattern. More siblings →
-higher likelihood.
+higher `ease_of_discovery` and `ease_of_exploit`.
 
 Keep sibling locations in your working notes and surface them in the hand-back
 (Stage 5, item 4). Do **not** put `file:func` references in the section 4 `evidence`
 cell; evidence is for confirmed past vulns only. Sibling counts inform the
-likelihood score, not the evidence column.
+likelihood factors, not the evidence column.
 
-### 3c. Score
+### 3c. Rate
 
-For each cluster, assign:
+Rate each cluster with the OWASP Risk Rating Methodology. The factor
+definitions and the JSON form are in the schema.md
+[Scoring guide](schema.md#scoring-guide). For each cluster, assign:
 
 - `actor`: from the entry point (file parsing → whoever supplies the file;
   network endpoint → `remote_unauth` or `remote_auth` depending on whether
   auth precedes it).
-- `impact`: from the asset and the bug class (memory corruption on a network
-  service → `critical`; info leak of non-sensitive data → `low`).
-- `likelihood`: start from the evidence. ≥1 confirmed past vuln in this exact
-  surface → at least `likely`. Public exploit or active exploitation →
-  `almost_certain`. No evidence, but siblings found and technique is well
-  known → `possible`. Adjust down for controls.
+- `risk_rating`, scored factor by factor on the **technical** basis
+  (bootstrap has no business context):
+  - Impact factors come from the asset and the bug class. Memory corruption
+    in a network service scores high on integrity and confidentiality; a
+    leak of non-sensitive data scores low on everything.
+  - Likelihood factors start from the evidence. A confirmed past vuln in
+    this exact surface puts `awareness` high. A public exploit or active
+    exploitation puts `ease_of_exploit` high too. Siblings found by 3b raise
+    `ease_of_discovery`. The `actor` sets `population_size`.
+  - Score the residual risk: lower the factors the controls below act on.
+  - Give a reason for each factor that evidence or a control moved.
 - `controls`: grep for mitigations relevant to the stack (size caps, input
   validation, sandboxing/seccomp; ASLR/stack-protector/CFI in native builds;
   parameterized queries / ORM; auth middleware / CSRF tokens / CSP; rate
@@ -343,7 +350,7 @@ Write each cluster as a section 4 row.
   "section1_context": "...",
   "section2_assets": [...],
   "section3_entry_points": [...],
-  "section4_threats": [ {threat, actor, surface, asset, impact, likelihood, status, controls, evidence} ],
+  "section4_threats": [ {threat, actor, surface, asset, risk_rating, status, controls, evidence} ],
   "mitigation_notes": [ {cluster, recommended_mitigation} ],
   "sibling_locations": [ {threat, locations: ["file:func", ...]} ]
 }
@@ -401,8 +408,8 @@ personal data is in scope; say so in one line. Do not run PASTA or OCTAVE —
 their organizational stages duplicate the interview mode and the portfolio
 segment graph.
 
-Threats added in this stage have empty `evidence`. That's fine; score
-`likelihood` from technique prevalence and surface reachability alone. **The
+Threats added in this stage have empty `evidence`. That's fine; score the
+likelihood factors from technique prevalence and surface reachability alone. **The
 final section 4 table must contain at least one row with empty evidence**, or this
 stage didn't run.
 
@@ -438,8 +445,10 @@ the entry-point's name string, not the concept; the downstream scorer is a
 text match. Any section 3 row with zero section 4 coverage means Stage 4 was incomplete; go
 back and add the missing threat now.
 
-Sort section 4 by (impact desc, likelihood desc). Assign `id` = `T1`, `T2`, … in
-sorted order.
+Run `python3 -m traust.cli reporting rate-threats <repo>-threat-model.json`
+to fill in every rating's scores, levels and severity. Then sort section 4
+by severity, impact score and likelihood score, all descending. Assign
+`id` = `T1`, `T2`, … in sorted order.
 
 **Section 1 layering.** Open with the 1-2 paragraph jargon-free executive
 summary (schema.md section 1: top 2-3 threats in plain language + the single
@@ -451,8 +460,7 @@ each one sentence of motivation derived from **this system's** assets
 primary"). The personas are prose color; the section 4 `actor` column stays
 the access-position enum.
 
-**Section 9 attack scenarios.** For the top 3-5 threats by
-(impact × likelihood), write one `### Tn — <threat text>` subsection each:
+**Section 9 attack scenarios.** For the top 3-5 threats by severity, write one `### Tn — <threat text>` subsection each:
 3-5 present-tense sentences telling the attack as a story — persona, path
 (name the section 3 entry point), concrete impact, and one sentence on why
 current controls don't stop it. Writing bar per schema.md: readable by a
@@ -524,7 +532,7 @@ coverage invariant, and evidence-cell hygiene — the same role
 Hand back to the user:
 
 1. Path to the file.
-2. Top 5 threats (id, threat, impact × likelihood).
+2. Top 5 threats (id, threat, severity).
 3. Count of threats with evidence vs without (shows gap-fill ran).
 4. Stage-3b sibling locations as candidate leads for `/vuln-scan` or the
    pipeline `find` stage.

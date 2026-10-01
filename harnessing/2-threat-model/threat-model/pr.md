@@ -70,9 +70,10 @@ If none exists, note that and proceed — the assessment stands alone.
 ## P5. Emit the assessment
 
 Print to the conversation (write `<target-dir>/PR_THREAT_ASSESSMENT.md`
-only if the user asks). Use schema vocabulary — `actor`, `impact`,
-`likelihood` from `schema.md` enums — so the assessment reads consistently
-with the full model:
+only if the user asks). Use schema vocabulary — `actor` from the
+`schema.md` enum, and OWASP Risk Rating Methodology severity, likelihood
+and impact per the schema.md [Scoring guide](schema.md#scoring-guide) —
+so the assessment reads consistently with the full model:
 
 ```markdown
 ## PR Threat Assessment: <branch or title>
@@ -81,8 +82,8 @@ with the full model:
 <2-3 sentences: what changed, why it matters for security.>
 
 ### New threats introduced
-One bullet per threat: sentence (litmus-test level), actor, impact ×
-likelihood, and the diff hunks involved (file:line citations ARE
+One bullet per threat: sentence (litmus-test level), actor, severity
+(likelihood and impact level with score), and the diff hunks involved (file:line citations ARE
 appropriate here — this artifact is scoped to a diff and dies with the MR).
 
 ### Existing threats affected

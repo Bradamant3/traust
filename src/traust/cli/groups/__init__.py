@@ -82,6 +82,7 @@ GROUPS: dict[str, dict[str, object]] = {
         "validate": reporting.VALIDATE,
         "lint": reporting.LINT,
         "render": reporting.RENDER,
+        "rate-threats": reporting.RATE_THREATS,
         "sarif": reporting.SARIF,
     },
     "route": dict(route.ROUTE),

@@ -275,6 +275,7 @@ when a whole BY-SA work is adapted.
 |---|---|---|---|---|
 | OWASP ASVS v5.0 | secure-code-audit, secure-rpm-audit, vuln-scan | CC-BY-SA-4.0 | [LICENSE](https://raw.githubusercontent.com/OWASP/ASVS/master/LICENSE.md) | **Low** — attribution + ShareAlike on *adapted excerpts only*; keep them delimited and attributed so SA stays scoped |
 | OWASP Kubernetes Top 10 (2025) | secure-code-audit | CC-BY-SA-4.0 | [LICENSE](https://raw.githubusercontent.com/OWASP/www-project-kubernetes-top-ten/master/LICENSE) | **Low** — same as ASVS |
+| OWASP Risk Rating Methodology | threat-model, threat-register, findings-trends | CC-BY-SA-4.0 | [owasp.org site footer](https://owasp.org/www-community/OWASP_Risk_Rating_Methodology) ("all content on the site is Creative Commons Attribution-ShareAlike v4.0") | **Low** — the method is reimplemented in original wording, and its example scales aren't reproduced; cite it, and keep any future excerpt delimited and attributed |
 | CIS Kubernetes Benchmark v2.0 | secure-code-audit | CIS non-member ToU: internal, **non-commercial** use only; no derivatives; no incorporation into commercial products | [CIS ToU](https://www.cisecurity.org/terms-of-use-for-non-member-cis-products) | **High** for any commercial embedding of benchmark-derived text (requires a CIS SecureSuite Product Vendor membership). ID-only citations remain safe — and are all the harness emits (enforced, see below) |
 | DISA STIG for Kubernetes | secure-code-audit | US Government work — public domain (17 U.S.C. §105) | [§105](https://www.law.cornell.edu/uscode/text/17/105) · [cyber.mil](https://public.cyber.mil/stigs/) | **None** — avoid implying DoD endorsement |
 | NIST SP 800-53 rev 5 + SP 800-53B baselines (OSCAL) | compliance-check (canonical spine) | CC0-1.0 / US-Gov public domain | [LICENSE.md](https://github.com/usnistgov/oscal-content/blob/main/LICENSE.md) | **None** — provenance (upstream sha256, retrieval date) recorded next to the vendored derivations |
@@ -333,6 +334,7 @@ Formal citations for the frameworks the harness applies:
 
 - OWASP Foundation. *OWASP Application Security Verification Standard*, v5.0. https://owasp.org/www-project-application-security-verification-standard/ — CC-BY-SA-4.0.
 - OWASP Foundation. *OWASP Kubernetes Top 10*, 2025 edition. https://owasp.org/www-project-kubernetes-top-ten/ — CC-BY-SA-4.0.
+- OWASP Foundation. *OWASP Risk Rating Methodology*. https://owasp.org/www-community/OWASP_Risk_Rating_Methodology — CC-BY-SA-4.0.
 - Center for Internet Security. *CIS Kubernetes Benchmark*, v2.0. https://www.cisecurity.org/benchmark/kubernetes — CIS Terms of Use (non-member).
 - Defense Information Systems Agency. *Kubernetes Security Technical Implementation Guide*, V2R6. https://public.cyber.mil/stigs/ — US Government work.
 - OpenSSF / The Linux Foundation. *SLSA: Supply-chain Levels for Software Artifacts*, v1.2. https://slsa.dev/ — Community Specification License 1.0.
