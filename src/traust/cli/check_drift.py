@@ -1142,7 +1142,7 @@ def check_threat_model_staleness(ws: Path) -> list[dict]:
         "python3 -m traust.cli.build_rescan_worklist, "
         "then python3 harnessing/2-threat-model/threat-model/scripts/"
         "emit_drain_tranche.py, and dispatch the "
-        "threat-model rows (/threat-model review --auto); cadence "
+        "threat-model rows (/threat-model review --auto --apply-ratings); cadence "
         "plan: progress-tracker/plans/threat-model-cadence-plan.md"
     )
     if stale:

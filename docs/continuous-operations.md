@@ -273,7 +273,7 @@ in its cost report; what follows is the relative weight and what each lane buys.
 | RPM audit (`/secure-rpm-audit`) | spec/scriptlets/patches + prepared source tree | medium-heavy | packaging + patched-upstream lens |
 | Targeted class sweep | one weakness class, purpose-built prompt, whole fleet slice | medium | strong standalone recall *inside its class* — the only measured mechanism recovering the configuration-class blind spot that every general scan shares |
 | Verify sweep (`/verify-remediation`) | per-finding targeted re-audit of previously-filed findings only | light | resolves findings; finds nothing new by design |
-| Threat-model review (`/threat-model review --auto`) | deterministic `git diff` pre-pass from the model's provenance SHA, then re-scores **only what moved** | light (bounded by what moved) | keeps the audit coverage diff honest — the surface an audit checks itself against |
+| Threat-model review (`/threat-model review --auto --apply-ratings`) | deterministic `git diff` pre-pass from the model's provenance SHA, then re-scores **only what moved**; writes OWASP ratings for any unrated threat, everything else report-only | light (bounded by what moved) | keeps the audit coverage diff honest — the surface an audit checks itself against |
 | Threat-model pr (`/threat-model pr`) | bounded assessment of one diff, on a clone the diff scan already made | light (bounded by one diff) | flags new entry points / trust boundaries a diff introduced |
 | Deps / routing / Kubernetes-hardening / gitleaks lanes | deterministic tooling | none | rule-pack precision, no judgment |
 
@@ -528,9 +528,11 @@ python3 harnessing/2-threat-model/threat-model/scripts/emit_drain_tranche.py [--
 #        no model and re-stamps no SHA; the assessment is the output.
 #
 #    lane threat-model-review | threat-model-quarterly:
-#      scan:     /threat-model review <scratch>/clone --auto
-#                (report-only: writes the review beside the resolved
-#                 model, never modifies the model. Promoting a repo to
+#      scan:     /threat-model review <scratch>/clone --auto --apply-ratings
+#                (report-only except OWASP ratings: writes the review
+#                 beside the resolved model and applies only the ratings
+#                 it proposes for unrated threats; the render guard keeps
+#                 an incomplete model's prose. Promoting a repo to full
 #                 `--apply` is a per-repo operator decision)
 #      spend:    model_registry.py spend --skill threat-model
 #                --batch drain-tranche-<week>

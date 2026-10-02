@@ -2,6 +2,21 @@
 
 All notable changes to Traust are documented here.
 
+## [0.14.0]
+
+- **The scheduled threat-model check-up applies OWASP ratings.** A new
+  `/threat-model review --auto --apply-ratings` mode (review.md R6) writes the
+  OWASP Risk Rating Methodology ratings it proposes for unrated threats and
+  leaves every other proposal report-only for a human. The quarterly and
+  release-review lanes now dispatch it; `--auto` alone stays report-only.
+  Release-branch models are still outside those lanes, by design.
+- **`traust reporting render` won't erase threat-model prose.** It refuses to
+  overwrite an existing `.md` when the new rendering would drop or empty a
+  section the file has, which is what happens when the JSON lacks members
+  the Markdown carries (the pre-schema backfill). Pass `--allow-section-loss`
+  for an intended removal. Under `--apply-ratings` a refusal means "re-model
+  needed" and nothing is written.
+
 ## [0.13.3]
 
 - traust-engine 0.18.2. Rendering a threat model from its JSON is now

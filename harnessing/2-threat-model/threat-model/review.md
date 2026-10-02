@@ -36,6 +36,10 @@ touch only what moved.
     into `update` with the full change set). Use only when the caller has
     already decided to accept the review wholesale — e.g. a pipeline that
     re-lints and diffs afterwards.
+  - `--apply-ratings` (with `--auto`): report-only for everything EXCEPT the
+    R3b ratings, which are written. This is how the scheduled check-up
+    (quarterly and release-review lanes) moves unrated models to the OWASP
+    Risk Rating Methodology without a human applying each report. See R6.
   - Neither flag → interactive (R5 below).
 - `update` only — feedback, any of:
   - free text after the target ("remove T3, upgrade T5 to critical, add a
@@ -142,7 +146,7 @@ the resolved model's path with `-threat-model.md` replaced by
 ### R5. Offer to apply (interactive default)
 
 `--auto` → write the review file (per R4 naming, beside the resolved
-model) and stop here.
+model) and stop here, unless `--apply-ratings` is also set (R6).
 `--apply` → skip the prompt and continue into `update` with every proposed
 change. Otherwise:
 
@@ -152,6 +156,25 @@ with options: apply all / let me pick per change / no, report only. For
 the change rendered in the option preview so the user never has to hold the
 report in their head. On any form of yes, continue into `update` below with
 the accepted changes as feedback. On no, stop — the review stands alone.
+
+### R6. Apply ratings only (`--auto --apply-ratings`)
+
+After writing the review file, if R3b proposed ratings, write those and
+nothing else:
+
+1. In the JSON, give each unrated threat its proposed `risk_rating`
+   (factors, basis, reasons) and drop its legacy `impact`/`likelihood`.
+   Change no other field. New threats, stale threats, changed controls and
+   every other proposal stay in the report for a human.
+2. Append one update-history row ("rated T1-Tn with the OWASP Risk Rating
+   Methodology"; reason "scheduled review, ratings applied").
+3. Run `rate-threats`, `validate`, then `render -o <model>.md`, then `lint`.
+   **If `render` refuses** because the new rendering would drop or empty a
+   section the `.md` has, the JSON is incomplete (a pre-schema backfill).
+   Don't pass `--allow-section-loss`. Restore the JSON from before step 1,
+   and add "ratings not applied: model JSON incomplete; re-model needed" to
+   the review file.
+4. Report the outcome (applied, or why not) in the review file's last line.
 
 ---
 

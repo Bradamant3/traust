@@ -221,8 +221,9 @@ Parse `$ARGUMENTS`:
 **Interactivity is an option, never a requirement.** Every prompt in this
 skill fires only when the invocation left a decision open: an explicit mode
 token skips the routing questions; `bootstrap` and `pr` never prompt;
-`review --auto` (report-only) and `review --apply` (accept all) are
-prompt-free for batch sweeps; `update` with feedback in the invocation
+`review --auto` (report-only), `review --auto --apply-ratings` (report-only
+except OWASP ratings, which are written; the scheduled check-up's mode) and
+`review --apply` (accept all) are prompt-free for batch sweeps; `update` with feedback in the invocation
 proceeds without asking. Only `interview` is inherently conversational —
 that is its purpose. A fully automated pipeline can drive every other mode
 end-to-end with no human present.
