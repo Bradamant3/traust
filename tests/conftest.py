@@ -76,6 +76,12 @@ os.environ["HOME"] = str(_LEDGER_HOME)
 for _k in ("LAAS_TOKEN", "LEDGER_TOKEN", "LEDGER_TOKEN_PATH", "LEDGER_LOCAL_MACHINE"):
     os.environ.pop(_k, None)
 os.environ["LEDGER_LOCAL_IDENTITY"] = "test@traust.local"
+# Ledger 0.9.0: local tokens are no longer identity_verified by default (one
+# person could otherwise hold two local identities and satisfy the two-person
+# rule alone). This suite's fixture identity stands in for a human reviewer
+# on purpose, so opt this test deployment back in -- same flag a real
+# solo/offline deployment sets. See ledger CHANGELOG.md [0.9.0] Security.
+os.environ["LEDGER_TRUST_LOCAL_IDENTITY"] = "1"
 
 try:
     from traust_ledger.auth.config import resolve_auth
