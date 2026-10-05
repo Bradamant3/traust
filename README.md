@@ -14,7 +14,10 @@ Traust is designed to be agent-agnostic in principle, with the current implement
 
 This repository is the **agent-facing layer** of a five-component stack, not the
 whole system. Skills, slash commands and CLIs live here; the Traust engine, the ledger, the contracts, and the SDK are separately
-versioned repositories, installed as pip dependencies pinned by git tag.
+versioned repositories, installed as pip dependencies pinned by commit sha
+(`[tool.uv.sources] rev = "<sha>"`, not a release tag — pin by commit, bump the
+pin in each downstream repo after a merge, re-lock, re-test; see each repo's
+README for the exact pin format).
 
 - [traust-engine](https://github.com/traust-security/traust-engine) — scanner adapters, corpus, metrics, reporting, validation
 - [traust-ledger](https://github.com/traust-security/traust-ledger) — finding identity, Merkle integrity, signing, ledger writes
