@@ -2,7 +2,7 @@
 
 [![skillsaw grade](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fopenshift%2Ftraust%2Fmain%2F.skillsaw-badge.json)](https://skillsaw.org/)
 
-Traust is an AI-native workflow engine for the automated security assessment of software. It equips adopters with a structured methodology to run consistent, repeatable multi-framework audits across  repositories, including; source code, container images, RPM packages, Kubernetes operators, and IaC. It enables the machine triage of findings and live validation exploits to drive remediation, recording every event in a signed, tamper-evident ledger. Traust is built to simplify the process of application security, with the ability to scale to hundreds of repositories across dozens of product releases if needed.
+Traust is an AI-native workflow engine for the automated security assessment of software. It equips adopters with a structured methodology to run consistent, repeatable multi-framework audits across repositories that include source code, container images, RPM packages, Kubernetes operators, or infrastructure as code (IaC). It provides machine triage of findings and live validation of exploits to drive remediation, recording every event in a signed, tamper-evident ledger. Traust is built to simplify the process of application security, with the ability to scale to hundreds of repositories across dozens of product releases if needed.
 
 This repository holds the skills and source code that drive the workflow engine. Traust is agent-agnostic in principle, with current implementations for Claude Code and Crush. Developed by Red Hat's Hybrid Platforms team and published under Apache License 2.0.
 
@@ -39,13 +39,17 @@ Then start your agent from the harness root and type `/` to see available comman
                               └─ findings re-enter ④ Triage / the ledger; dashboards & drift-watch rebuild on cadence
 ```
 
-Two ways to run it: **[standalone](docs/standalone-usage.md)** (one skill, one repo, locally) or **[campaign](docs/campaign-workflow.md)** (end-to-end, org-wide). The full 9-stage workflow is in [PROCESS.md](PROCESS.md).
+You can run Traust in either of the following ways: 
+
+- **[standalone](docs/standalone-usage.md)** (one skill, one repo, locally) 
+
+- **[campaign](docs/campaign-workflow.md)** (end-to-end, org-wide). [PROCESS.md](PROCESS.md) explains the full nine-stage workflow.
 
 Findings interchange is standards-based in both directions: `/triage` imports **SARIF 2.1.0** from any scanner (also Dependabot alert exports and govulncheck streams), and every report exports to SARIF for the adopter's own dashboard or viewer (`python3 -m traust.cli reporting sarif`). See [docs/sarif.md](docs/sarif.md).
 
 ## Components
 
-This repository is the **agent-facing layer** of a five-component stack, not the whole system. Skills, slash commands and CLIs live here; the engine, ledger, contracts, and SDK are separately versioned repositories installed as pip dependencies pinned by git tag.
+This repository is the **agent-facing layer** of a five-component stack, not the whole system. It contains the skills, slash commands and CLIs of the stack. The engine, ledger, contracts, and SDK are separately versioned repositories installed as pip dependencies pinned by git tag.
 
 ```
   traust     skills, slash commands, agent-facing CLIs   ← this repo
