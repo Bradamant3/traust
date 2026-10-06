@@ -12,7 +12,7 @@ license = "Apache-2.0"
 description = "AI agent tooling for automated security audits of Red Hat Hybrid Platforms source code"
 requires-python = ">=3.11"
 dependencies = [
-    "traust-engine>=0.18.2",
+    "traust-engine",
     # TODO: this should not be here. Declared only because a handful of call
     # sites import traust_ledger DIRECTLY instead of going through
     # traust_engine.ledger.LedgerService, which is the intended seam:
@@ -26,8 +26,8 @@ dependencies = [
     # depending on it. Some more restructuring will help alleviate this pain later.
     # Route these through LedgerService and drop this line. countersign.py is
     # itself a candidate for removal, which retires most of the callers.
-    "traust-ledger>=0.8.5",
-    "traust-contracts>=0.47.0",
+    "traust-ledger",
+    "traust-contracts",
     "jsonschema",
     "referencing",
     "pyyaml",
@@ -52,9 +52,9 @@ traust = "traust.cli.__main__:main"
 dev = ["ruff>=0.6", "pytest-xdist>=3"]
 
 [tool.uv.sources]
-traust-contracts = { git = "https://github.com/traust-security/traust-contracts.git", tag = "v0.47.0" }
-traust-engine = { git = "https://github.com/traust-security/traust-engine.git", tag = "v0.18.2" }
-traust-ledger = { git = "https://github.com/traust-security/traust-ledger.git", tag = "v0.8.5" }
+traust-contracts = { git = "https://github.com/smith-xyz/traust-contracts.git", rev = "104519fd18f724e121c492c160e3dc2d67408f90" }
+traust-engine = { git = "https://github.com/smith-xyz/traust-engine.git", rev = "248746baa45fd297d8a34b690cd043e547c7b69e" }
+traust-ledger = { git = "https://github.com/smith-xyz/traust-ledger.git", rev = "d28490aeb178c3369e84b0956616fbac059207f7" }
 
 # Multi-skill CLIs live under src/traust/; harnessing/<skill>/ for single-skill
 # scripts. Install for deps + importable path helpers.

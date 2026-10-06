@@ -61,6 +61,15 @@ git commit -m "chore: release X.Y.Z"
 `VERSION`, `pyproject.toml` and `version.args` must agree; the docs-consistency
 check fails when they drift. Tags follow `vX.Y.Z`.
 
+## Upstream pins
+
+This repo pins `traust-contracts`, `traust-ledger`, and `traust-engine` by
+commit sha (`[tool.uv.sources] rev = "<sha>"`), not a release tag — a tag
+needs their own release cut first, a commit doesn't. When one of them merges
+a change you depend on: bump the `rev` here to that commit, `uv lock`, run
+the full test suite, then open the PR. This is the end of the chain — no
+other repo pins traust.
+
 ## Running tests
 
 ```bash

@@ -105,10 +105,17 @@ changing shared scanners, ledger logic, or schemas — not only this tree.
 | **traust-ledger** | sibling repository `traust-ledger` |
 | **traust-contracts** | sibling repository `traust-contracts` |
 
-**Pins live only in `pyproject.toml`** — do not duplicate version tags in docs.
-After a package change: bump its `VERSION`, tag the repo, update `[tool.uv.sources]`
-and the semver constraint in `dependencies`, then `uv lock` and `uv sync`.
-`/drift-watch` compares installed versions to those pins.
+**Pins live only in `pyproject.toml`** — do not duplicate shas/version tags in docs.
+`[tool.uv.sources]` pins by commit `rev`, not `tag`: a tag requires a release
+cut first, a commit doesn't, so this repo can pick up a contracts/ledger/engine
+change as soon as it merges upstream instead of waiting on a tagged release.
+`dependencies` carries the bare package name with no floor — the `rev` is the
+floor now; a duplicated semver constraint is just a second number that can
+drift out of sync with the pin.
+
+After contracts, ledger, or engine merges a change you depend on: bump the
+`rev` here to that commit, `uv lock`, run the full test suite, then open a
+PR. `/drift-watch` compares installed versions to those pins.
 
 ### Running the tests
 
