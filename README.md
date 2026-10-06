@@ -2,9 +2,9 @@
 
 [![skillsaw grade](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fopenshift%2Ftraust%2Fmain%2F.skillsaw-badge.json)](https://skillsaw.org/)
 
-Traust is an agent harness for automated security assessment of software portfolios at scale. It equips an AI coding agent with structured methodology to run consistent, repeatable multi-framework audits across hundreds of repositories — source code, container images, RPM packages, Kubernetes operators, and IaC — then triage findings, validate exploitability on live systems, drive remediation, and record every disposition in a signed, tamper-evident ledger. Manual review does not scale to hundreds of repositories across dozens of product releases; Traust does.
+Traust is an AI-native workflow engine for the automated security assessment of software. It equips adopters with a structured methodology to run consistent, repeatable multi-framework audits across  repositories, including; source code, container images, RPM packages, Kubernetes operators, and IaC. It enables the machine triage of findings and live validation exploits to drive remediation, recording every event in a signed, tamper-evident ledger. Traust is built to simplify the process of application security, with the ability to scale to hundreds of repositories across dozens of product releases if needed.
 
-This repository holds the skills, slash commands, schemas and prompt engineering that drive the harness. Traust is agent-agnostic in principle, with current implementations for Claude Code and Crush. Developed by Red Hat's Hybrid Platforms team and published under Apache License 2.0.
+This repository holds the skills and source code that drive the workflow engine. Traust is agent-agnostic in principle, with current implementations for Claude Code and Crush. Developed by Red Hat's Hybrid Platforms team and published under Apache License 2.0.
 
 ## Quick start
 
