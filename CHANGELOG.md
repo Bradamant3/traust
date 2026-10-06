@@ -2,6 +2,114 @@
 
 All notable changes to Traust are documented here.
 
+## [0.14.0]
+
+- **The scheduled threat-model check-up applies OWASP ratings.** A new
+  `/threat-model review --auto --apply-ratings` mode (review.md R6) writes the
+  OWASP Risk Rating Methodology ratings it proposes for unrated threats and
+  leaves every other proposal report-only for a human. The quarterly and
+  release-review lanes now dispatch it; `--auto` alone stays report-only.
+  Release-branch models are still outside those lanes, by design.
+- **`traust reporting render` won't erase threat-model prose.** It refuses to
+  overwrite an existing `.md` when the new rendering would drop or empty a
+  section the file has, which is what happens when the JSON lacks members
+  the Markdown carries (the pre-schema backfill). Pass `--allow-section-loss`
+  for an intended removal. Under `--apply-ratings` a refusal means "re-model
+  needed" and nothing is written.
+
+## [0.13.3]
+
+- traust-engine 0.18.2. Rendering a threat model from its JSON is now
+  lossless: the update history sits inside section 7 (so a rated model with
+  history passes lint), optional asset columns are kept, and attack scenarios
+  render as prose.
+- traust-contracts 0.47.0 (every threat-model section defined) and
+  traust-ledger 0.8.5.
+
+## [0.13.2]
+
+- traust-contracts v0.46.0 (OWASP risk ratings in the storage `threat`
+  table), traust-ledger 0.8.4 and traust-engine 0.18.1. Nothing else changes.
+
+## [0.13.1]
+
+- **Released pins.** traust-engine `v0.18.0` and traust-ledger `v0.8.3`
+  replace the fork commits 0.13.0 merged with. They are the same trees, so
+  nothing else changes.
+
+## [0.13.0]
+
+- **Threats are rated with the OWASP Risk Rating Methodology.** This
+  replaces the impact/likelihood labels and 1-2-4-8-16 weights inherited
+  from the upstream skill, which weren't a published standard. Pins
+  traust-contracts v0.45.0 (`risk_rating` on threats), traust-ledger 0.8.3
+  and traust-engine 0.18.0; the engine and ledger are pinned to their open-PR
+  commits until they're tagged.
+  - `/threat-model`: the schema.md scoring guide restates the method in
+    original wording, citing OWASP. The author scores the sixteen 0-9 factors
+    with a reason for each one that evidence, a control or the owner moved.
+    Bootstrap rates on the technical basis; interview rates on the business
+    basis when the owner can answer. Section 4 gains
+    `severity | likelihood | impact`, and a new section 11 lists the factors.
+    bootstrap, interview, review, update and pr now speak the new vocabulary.
+  - New `traust reporting rate-threats <model>.json` fills each rating's
+    scores, levels and severity from its factors (`--check` reports without
+    writing). `validate` rejects a rating that disagrees with its factors.
+  - Existing models move over at their next update: any pass that writes a
+    model rates every threat still carrying legacy labels (review R3b,
+    update U1). Nothing is re-rated now.
+  - `/threat-register` ranks by OWASP severity, then impact and likelihood
+    score. It orders legacy threats by a labelled crosswalk (never reported
+    as a rating) and orders products by open-severity counts rather than a
+    weighted sum. It reports how many threats are rated. `score`,
+    `score_sum`, `max_score` and `open_critical_plus` are replaced by
+    `severity`, `severity_source`, `open_by_severity`, `max_severity` and
+    `open_critical`. Quick wins now cover unmitigated threats of high or
+    critical severity.
+  - Crown-jewel tiers: a rated threat's impact component is its OWASP
+    impact score / 9; legacy threats keep their points / 5.
+  - `docs/external-dependencies.md` records the OWASP Risk Rating
+    Methodology (CC-BY-SA-4.0, reimplemented in original wording), and
+    `docs/risk-rating-methodology.md` covers threats.
+
+## [0.12.0]
+
+- **Pins: contracts 0.44.0, engine 0.17.0, ledger 0.8.2.** Ledger stays a
+  declared dependency until the four direct `traust_ledger` call sites go
+  through the engine's `LedgerService`. Ledger ≥0.7 verifies the caller's identity
+  on every write, so running the harness needs a real identity: OIDC
+  (`LEDGER_OIDC_ISSUER` / `LEDGER_OIDC_JWKS_URL`) or local auth
+  (`LEDGER_LOCAL_IDENTITY`, or `ledger auth local`).
+- **A rebaseline is now a ledger restatement.** `baseline_claims record
+  --rebaseline <id>` needs `--ticket` and `--rationale`, and writes the new
+  claim hash through `LedgerService.restate()`, which records the prior hash,
+  the verified actor, the ticket and the rationale in the layer. When the
+  report bytes changed too, `audit_report_sha256` is restated with it. Pinning
+  a new finding's hash is unchanged. On ledger 0.8 the old path, an
+  unrecorded overwrite, is refused. `track-findings` and
+  `docs/disposition-ledger.md` describe the new flags; the ticket and
+  rationale are the user's to supply.
+- **The test suite sets up its own local ledger identity.** `tests/conftest.py`
+  isolates `HOME`, clears inherited ledger tokens, sets
+  `LEDGER_LOCAL_IDENTITY=test@traust.local`, and stops the run if auth doesn't
+  resolve. Tests no longer pass placeholder tokens. The `requires_ledger`
+  marker and its `LAAS_TOKEN` skip are gone, so the 17 ledger integration
+  tests it hid now run; fixing them turned up the two fixes below. See
+  CONTRIBUTING.md → "Ledger auth in tests".
+- Fix: `emit_triage_ledger_events` reported every idempotent re-run as "N
+  appended, 0 already present". An empty list of new event IDs was treated
+  as unknown; the sibling emitters already handled it.
+- Fix: tests that drove `build_cumulative` / `emit_triage_ledger_events` from
+  a temp directory now pass `--findings-root`, and the `sweep` test creates
+  its duplicate symlink the right way round. The path confinement is
+  unchanged and still has its own tests.
+- `remediate-finding` cites its manifest and mutation-evidence scripts by
+  their full `harnessing/` paths, so the reference-integrity check passes
+  again.
+- `config/locations.example.yaml` lists every key with an empty default and
+  documents `s3://` for `analysis_results` (credentials come from the
+  environment, never the file).
+
 ## [0.11.1]
 
 - **Stage-7 patch evidence is findable from `/patch`.** `remediate-finding`

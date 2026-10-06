@@ -263,7 +263,7 @@ workstation acquires no dependency for a deployment feature. Remote needs an
 extra:
 
 ```bash
-pip install 'traust-engine[s3]'     # or [gcs], or [remote] + your driver
+pip install 'traust-engine[s3]'     # gs:// or az://: [remote] plus gcsfs or adlfs
 # in locations.yaml:
 # analysis_results: s3://<bucket>/results
 ```
@@ -288,6 +288,20 @@ export HARNESS_S3_REGION=us-east-1       # some stores require any non-empty reg
 There is deliberately **no TLS-verification-off switch** — supply a CA bundle.
 `HARNESS_STORAGE_OPTIONS` takes a JSON object merged over the derived options
 for any backend kwarg not covered above.
+
+**Encryption at rest is the bucket's job, and it is required.** The findings
+store holds security findings, some under embargo. The harness does not set
+encryption on each object it writes, so the bucket must enforce it:
+
+- turn on default encryption with a managed key (SSE-KMS on AWS; the
+  equivalent server-side encryption on MinIO, Ceph RGW or ODF; a
+  customer-managed key on GCS or Azure)
+- add a bucket policy that denies unencrypted `PutObject` requests, so a
+  misconfigured client fails loudly instead of writing plaintext
+- restrict the key's use to the harness's identity and the people who triage
+  its findings
+
+A local path needs the same protection from the disk it sits on.
 
 ### Security-feed cache
 
@@ -329,6 +343,11 @@ pytest is the only runner (a unittest discover run silently skips the
 pytest-native share of the suite). When the environment has no operational
 config, the suite points `TRAUST_CONFIG_HOME` at a checked-in template copy
 and skips the live smokes. A clean run shows zero errors.
+
+Ledger writes need a verified identity. The suite provisions an isolated local
+identity by itself: no OIDC login is needed, and your
+`~/.config/traust-ledger` is never read. See
+[CONTRIBUTING.md → Ledger auth in tests](../CONTRIBUTING.md#ledger-auth-in-tests).
 
 ## 8. Validate and render a report
 

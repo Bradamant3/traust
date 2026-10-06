@@ -12,11 +12,14 @@ emits:
     threat-register/threat-register.md     leadership summary
     threat-register/threat-register.html   self-contained dashboard
 
-No conclusions are drawn: statuses, impacts, and likelihoods are reported
-as the models state them. The rank score is a fixed ordinal product
-(impact weight x likelihood weight, documented in the JSON meta), used
-for ordering only — it is not CVSS and never feeds the risk index, which
-remains the ledger's job.
+No conclusions are drawn: statuses and ratings are reported as the models
+state them. Threats are ranked by their OWASP Risk Rating Methodology
+severity (https://owasp.org/www-community/OWASP_Risk_Rating_Methodology),
+then impact and likelihood score. A threat whose model has not been
+re-rated yet is ordered by the fixed legacy crosswalk in
+traust_engine.reporting.threat_rating and marked
+`severity_source: legacy-crosswalk`. The ranking is for ordering only — it
+is not CVSS and never feeds the risk index, which remains the ledger's job.
 
 Usage:
     python3 build_threat_register.py [--results-root <analysis-results>] [--out <dir>]
@@ -34,6 +37,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 from traust_engine import locations
+from traust_engine.reporting import threat_rating
 from traust_engine.reporting.lint import (
     BOUNDARY_COLUMNS,
     ISOLATION_DIMENSIONS,
@@ -51,18 +55,25 @@ from traust.context import (
     resolve_results_root,
 )
 
-IMPACT_W = {"low": 1, "medium": 2, "high": 4, "critical": 8, "existential": 16}
-LIKELIHOOD_W = {"very_rare": 1, "rare": 2, "possible": 4, "likely": 8, "almost_certain": 16}
-IMPACT_ORDER = ["existential", "critical", "high", "medium", "low"]
+SEVERITY_ORDER = list(threat_rating.SEVERITY_ORDER)  # critical .. note
 STATUS_ORDER = ["unmitigated", "partially_mitigated", "risk_accepted", "mitigated"]
 QUICK_WIN_EFFORTS = {"XS", "S"}
-QUICK_WIN_IMPACTS = {"high", "critical", "existential"}
+HIGH_PLUS = {"high", "critical"}
+OPEN = ("unmitigated", "partially_mitigated")
 
 SCORING = (
-    "rank score = impact weight x likelihood weight; "
-    f"impact {IMPACT_W}; likelihood {LIKELIHOOD_W}. "
-    "Ordering only — not CVSS, not the risk index."
+    "rank = OWASP Risk Rating Methodology severity (critical, high, medium, "
+    "low, note), then impact score, then likelihood score. Threats not yet "
+    "re-rated are ordered by the legacy crosswalk (impact low/medium/high "
+    "as-is, critical/existential -> high; likelihood very_rare/rare -> low, "
+    "possible -> medium, likely/almost_certain -> high) and carry "
+    "severity_source 'legacy-crosswalk'. Ordering only — not CVSS, not the "
+    "risk index."
 )
+
+
+def _rank(threat):
+    return threat_rating.order_key(threat)
 
 
 def model_slug(path, root):
@@ -94,6 +105,7 @@ def parse_model(path, root):
             continue
         row = dict(zip(cols, r, strict=False))
         evidence = [t.strip() for t in re.split(r"[,;]\s*", row["evidence"]) if t.strip()]
+        rating = threat_rating.parse_row(row)
         threats.append(
             {
                 "key": f"{product}/{slug}:{row['id']}",
@@ -104,13 +116,19 @@ def parse_model(path, root):
                 "actors": [a.strip() for a in row["actor"].split(",") if a.strip()],
                 "surface": row["surface"],
                 "asset": row["asset"],
-                "impact": row["impact"],
-                "likelihood": row["likelihood"],
+                "severity": rating["severity"],
+                "severity_source": rating["severity_source"],
+                "impact": rating["impact"],
+                "likelihood": rating["likelihood"],
+                **{
+                    k: rating[k]
+                    for k in ("likelihood_score", "impact_score", "impact_basis")
+                    if k in rating
+                },
                 "status": row["status"],
                 "controls": row["controls"],
                 "evidence": evidence,
                 "linddun": row["threat"].lower().startswith("linddun:"),
-                "score": IMPACT_W.get(row["impact"], 0) * LIKELIHOOD_W.get(row["likelihood"], 0),
             }
         )
         # Optional isolation tag (subset of the five hardening dimensions,
@@ -213,21 +231,20 @@ def ownership_cuts(models):
     for tree, label in OWNERSHIP_CUT_TREES:
         tms = [m for m in models if m.get("tree") == tree]
         ths = [t for m in tms for t in m["threats"]]
-        open_ths = [t for t in ths if t["status"] in ("unmitigated", "partially_mitigated")]
+        open_ths = [t for t in ths if t["status"] in OPEN]
         cuts[tree] = {
             "label": label,
             "models": len(tms),
             "threats": len(ths),
             "open": len(open_ths),
-            "open_critical_plus": sum(
-                1 for t in open_ths if t["impact"] in ("critical", "existential")
-            ),
+            "open_critical": sum(1 for t in open_ths if t["severity"] == "critical"),
         }
     return cuts
 
 
 def quick_wins(models):
-    """Class-closing XS/S mitigations that cover an open high+ threat."""
+    """Class-closing XS/S mitigations that cover an unmitigated threat of
+    high or critical severity."""
     wins = []
     for m in models:
         by_id = {t["id"]: t for t in m["threats"]}
@@ -239,26 +256,30 @@ def quick_wins(models):
                 for t in mit["threat_ids"]
                 if t in by_id
                 and by_id[t]["status"] == "unmitigated"
-                and by_id[t]["impact"] in QUICK_WIN_IMPACTS
+                and by_id[t]["severity"] in HIGH_PLUS
             ]
             if covered:
+                top = min(covered, key=_rank)
                 wins.append(
                     {
                         "product": m["product"],
                         "model": m["model"],
                         "mitigation": mit["mitigation"],
                         "effort": mit["effort"],
-                        "covers": [t["key"] for t in covered],
-                        "max_score": max(t["score"] for t in covered),
+                        "covers": [t["key"] for t in sorted(covered, key=_rank)],
+                        "max_severity": top["severity"],
+                        "_rank": _rank(top),
                     }
                 )
-    wins.sort(key=lambda w: (-w["max_score"], w["product"]))
+    wins.sort(key=lambda w: (w["_rank"], w["product"]))
+    for w in wins:
+        del w["_rank"]
     return wins
 
 
 # Dimension-result weights for the weakest-boundary ordering: a failed
 # dimension outweighs a partial one; yes/na contribute nothing. Ordering
-# only — like the rank score, this is not CVSS and draws no conclusions.
+# only — like the threat ranking, this is not CVSS and draws no conclusions.
 DIM_FAIL_W = {"no": 2, "partial": 1}
 COMPLEXITY_RANK = {"high": 2, "medium": 1, "low": 0}
 
@@ -370,21 +391,34 @@ def build(root, out_dir, engine=None):
                 )
 
     threats = [t for m in models for t in m["threats"]]
-    open_threats = [t for t in threats if t["status"] in ("unmitigated", "partially_mitigated")]
+    open_threats = [t for t in threats if t["status"] in OPEN]
 
     by_product = defaultdict(
-        lambda: {"models": 0, "threats": 0, "open": 0, "open_high_plus": 0, "score_sum": 0}
+        lambda: {
+            "models": 0,
+            "threats": 0,
+            "open": 0,
+            "open_high_plus": 0,
+            "open_by_severity": dict.fromkeys(SEVERITY_ORDER, 0),
+        }
     )
     for m in models:
         by_product[m["product"]]["models"] += 1
     for t in threats:
         p = by_product[t["product"]]
         p["threats"] += 1
-        if t["status"] in ("unmitigated", "partially_mitigated"):
+        if t["status"] in OPEN:
             p["open"] += 1
-            p["score_sum"] += t["score"]
-            if t["impact"] in QUICK_WIN_IMPACTS:
+            if t["severity"] in p["open_by_severity"]:
+                p["open_by_severity"][t["severity"]] += 1
+            if t["severity"] in HIGH_PLUS:
                 p["open_high_plus"] += 1
+
+    def product_order(item):
+        # Most open critical first, then high, and so on; counts, never a
+        # weighted sum of ordinal labels.
+        name, v = item
+        return (*(-v["open_by_severity"][s] for s in SEVERITY_ORDER), name)
 
     register = {
         "meta": {
@@ -399,19 +433,18 @@ def build(root, out_dir, engine=None):
         },
         "totals": {
             "by_status": dict(Counter(t["status"] for t in threats)),
-            "by_impact": dict(Counter(t["impact"] for t in threats)),
-            "open_by_impact": dict(Counter(t["impact"] for t in open_threats)),
+            "by_severity": dict(Counter(t["severity"] or "unknown" for t in threats)),
+            "open_by_severity": dict(Counter(t["severity"] or "unknown" for t in open_threats)),
+            "by_severity_source": dict(Counter(t["severity_source"] or "unknown" for t in threats)),
             "evidence_backed": sum(1 for t in threats if t["evidence"]),
             "linddun": sum(1 for t in threats if t["linddun"]),
         },
         "ownership_cuts": ownership_cuts(models),
-        "by_product": {
-            k: dict(v) for k, v in sorted(by_product.items(), key=lambda kv: -kv[1]["score_sum"])
-        },
+        "by_product": {k: dict(v) for k, v in sorted(by_product.items(), key=product_order)},
         "doc_variance": doc_variance_cut(root),
         "quick_wins": quick_wins(models),
         "threats": sorted(
-            threats, key=lambda t: (-t["score"], STATUS_ORDER.index(t["status"]), t["key"])
+            threats, key=lambda t: (_rank(t), STATUS_ORDER.index(t["status"]), t["key"])
         ),
     }
     # Optional (PEACH lens Phase 1): present only when at least one model
@@ -462,6 +495,14 @@ def _doc_variance_md(reg) -> list:
     return out
 
 
+def _severity_label(threat):
+    """Severity as shown to readers; a crosswalked one says so."""
+    severity = threat.get("severity") or "unknown"
+    if threat.get("severity_source") == "legacy-crosswalk":
+        return f"{severity} (legacy crosswalk)"
+    return severity
+
+
 def render_md(reg):
     m, t = reg["meta"], reg["totals"]
     open_total = t["by_status"].get("unmitigated", 0) + t["by_status"].get("partially_mitigated", 0)
@@ -478,14 +519,17 @@ def render_md(reg):
         "",
         "## How to read this",
         "",
-        "- Statuses, impacts, and likelihoods are reported **exactly as the "
-        "models state them** — mostly machine-derived at each model's "
-        "emission date (bootstrap mode greps for controls; interview-mode "
-        "rows carry owner answers). They decay until a `/threat-model "
-        "review` pass re-scores them against current code.",
-        "- The rank score is an ordinal ordering aid "
-        "(impact weight × likelihood weight) — **not CVSS**, and it never "
-        "feeds the ledger risk index.",
+        "- Statuses and ratings are reported **exactly as the models state "
+        "them** — mostly machine-derived at each model's emission date "
+        "(bootstrap mode greps for controls; interview-mode rows carry owner "
+        "answers). They decay until a `/threat-model review` pass re-rates "
+        "them against current code.",
+        "- Severity is the [OWASP Risk Rating Methodology]"
+        "(https://owasp.org/www-community/OWASP_Risk_Rating_Methodology) "
+        "severity. A threat whose model has not been re-rated yet is ordered "
+        "by a fixed crosswalk from its legacy labels and marked *legacy "
+        "crosswalk* — an ordering aid, not a rating. Neither is CVSS, and "
+        "neither feeds the ledger risk index.",
         "- Keys are `<product>/<model-slug>:<Tn>`, stable across model "
         "updates (threat IDs are never renumbered or reused).",
         "- Threats join the disposition ledger only via their `evidence` "
@@ -498,9 +542,16 @@ def render_md(reg):
     ]
     for s in STATUS_ORDER:
         lines.append(f"| {s} | {t['by_status'].get(s, 0)} |")
-    lines += ["", "| impact (open threats) | count |", "|---|---|"]
-    for i in IMPACT_ORDER:
-        lines.append(f"| {i} | {t['open_by_impact'].get(i, 0)} |")
+    lines += ["", "| severity (open threats) | count |", "|---|---|"]
+    for sev in SEVERITY_ORDER:
+        lines.append(f"| {sev} | {t['open_by_severity'].get(sev, 0)} |")
+    sources = t.get("by_severity_source") or {}
+    lines += [
+        "",
+        f"Rated with OWASP: {sources.get('owasp', 0)} of {m['threat_count']} "
+        f"threats; ordered by the legacy crosswalk: "
+        f"{sources.get('legacy-crosswalk', 0)}.",
+    ]
     lines += [
         "",
         f"Evidence-backed threats: {t['evidence_backed']} of "
@@ -517,20 +568,20 @@ def render_md(reg):
             "folded into the owned cut; the portfolio totals above are "
             "unchanged.",
             "",
-            "| Cut | Models | Threats | Open | Open critical+existential |",
+            "| Cut | Models | Threats | Open | Open critical |",
             "|---|---|---|---|---|",
         ]
         for c in cuts.values():
             lines.append(
                 f"| {c['label']} | {c['models']} | {c['threats']} "
-                f"| {c['open']} | {c['open_critical_plus']} |"
+                f"| {c['open']} | {c['open_critical']} |"
             )
     lines += [
         "",
         f"## Top 25 open threats (of {open_total})",
         "",
-        "| key | product | threat | impact | likelihood | status |",
-        "|---|---|---|---|---|---|",
+        "| key | product | threat | severity | likelihood | impact | status |",
+        "|---|---|---|---|---|---|---|",
     ]
     shown = 0
     for th in reg["threats"]:
@@ -538,7 +589,8 @@ def render_md(reg):
             continue
         lines.append(
             f"| {th['key']} | {th['product']} | {cell(th['threat'], 110)} "
-            f"| {th['impact']} | {th['likelihood']} | {th['status']} |"
+            f"| {_severity_label(th)} | {th['likelihood']} | {th['impact']} "
+            f"| {th['status']} |"
         )
         shown += 1
         if shown >= 25:
@@ -547,9 +599,9 @@ def render_md(reg):
         "",
         f"## Top 25 quick wins (of {len(reg['quick_wins'])})",
         "",
-        "Class-closing XS/S mitigations covering an open "
-        "high/critical/existential threat — the highest-leverage "
-        "engineering asks in the fleet:",
+        "Class-closing XS/S mitigations covering an unmitigated threat of "
+        "high or critical severity — the highest-leverage engineering asks "
+        "in the fleet:",
         "",
         "| product | mitigation | effort | covers |",
         "|---|---|---|---|",
@@ -602,14 +654,16 @@ def render_md(reg):
         lines.append(f"| {p} | {n} |")
     lines += [
         "",
-        f"## Top 25 products by open-threat score (of {len(reg['by_product'])})",
+        f"## Top 25 products by open-threat severity (of {len(reg['by_product'])})",
         "",
-        "| product | models | threats | open | open high+ |",
-        "|---|---|---|---|---|",
+        "| product | models | threats | open | open critical | open high |",
+        "|---|---|---|---|---|---|",
     ]
     for p, v in list(reg["by_product"].items())[:25]:
+        sev = v["open_by_severity"]
         lines.append(
-            f"| {p} | {v['models']} | {v['threats']} | {v['open']} | {v['open_high_plus']} |"
+            f"| {p} | {v['models']} | {v['threats']} | {v['open']} "
+            f"| {sev['critical']} | {sev['high']} |"
         )
     lines += [
         "",
@@ -640,14 +694,15 @@ def render_html(reg):
     mx_open = max([v["open"] for v in reg["by_product"].values()] or [1])
     rows_products = "\n".join(
         f"<tr><td>{esc(p)}</td><td>{v['models']}</td><td>{v['threats']}</td>"
-        f"<td>{bar(v['open'], mx_open)}</td><td>{v['open_high_plus']}</td></tr>"
+        f"<td>{bar(v['open'], mx_open)}</td><td>{v['open_by_severity']['critical']}</td>"
+        f"<td>{v['open_by_severity']['high']}</td></tr>"
         for p, v in list(reg["by_product"].items())[:40]
     )
     rows_threats = "\n".join(
         f"<tr><td><code>{esc(th['key'])}</code></td><td>{esc(th['product'])}</td>"
-        f"<td>{esc(th['threat'][:160])}</td><td class='{esc(th['impact'])}'>"
-        f"{esc(th['impact'])}</td><td>{esc(th['likelihood'])}</td>"
-        f"<td>{esc(th['status'])}</td></tr>"
+        f"<td>{esc(th['threat'][:160])}</td><td class='{esc(th['severity'] or '')}'>"
+        f"{esc(_severity_label(th))}</td><td>{esc(th['likelihood'])}</td>"
+        f"<td>{esc(th['impact'])}</td><td>{esc(th['status'])}</td></tr>"
         for th in [
             x for x in reg["threats"] if x["status"] in ("unmitigated", "partially_mitigated")
         ][:50]
@@ -666,7 +721,7 @@ def render_html(reg):
     rows_cuts = "\n".join(
         f"<tr><td>{esc(c['label'])}</td><td>{c['models']}</td>"
         f"<td>{c['threats']}</td><td>{c['open']}</td>"
-        f"<td>{c['open_critical_plus']}</td></tr>"
+        f"<td>{c['open_critical']}</td></tr>"
         for c in cuts.values()
     )
     cuts_panel = (
@@ -677,7 +732,7 @@ def render_html(reg):
         "upstream is never folded into the owned cut; portfolio "
         "totals above are unchanged.</p>\n"
         "<table><tr><th>cut</th><th>models</th><th>threats</th>"
-        "<th>open</th><th>open critical+existential</th></tr>\n"
+        "<th>open</th><th>open critical</th></tr>\n"
         f"{rows_cuts}</table>"
     )
     return f"""<!DOCTYPE html><html><head><meta charset='utf-8'>
@@ -692,23 +747,24 @@ th{{background:#f5f5f5}} code{{font-size:12px}}
 .bar{{position:relative;background:#f0f0f0;border-radius:4px;min-width:120px;height:18px}}
 .bar span{{position:absolute;left:0;top:0;bottom:0;background:#c9302c55;border-radius:4px}}
 .bar b{{position:relative;padding-left:6px;font-size:12px}}
-td.critical,td.existential{{color:#c9302c;font-weight:700}} td.high{{color:#d9534f}}
+td.critical{{color:#c9302c;font-weight:700}} td.high{{color:#d9534f}}
 .meta{{color:#666;font-size:12px}}</style></head><body>
 <h1>Fleet-wide Threat Register</h1>
 <p class='meta'>Generated {esc(m["generated"])} · {m["models"]} threat models ·
 {m["threat_count"]} threats · key = model-slug:Tn (stable; IDs never reused) ·
-rank score is ordinal, not CVSS · statuses as the models state them</p>
+ranked by OWASP Risk Rating severity (legacy crosswalk until re-rated), not CVSS ·
+statuses as the models state them</p>
 <div class='kpis'>{status_cells}</div>
 {cuts_panel}
 <h2>Top open threats</h2>
-<table><tr><th>key</th><th>product</th><th>threat</th><th>impact</th>
-<th>likelihood</th><th>status</th></tr>{rows_threats}</table>
-<h2>Quick wins — class-closing XS/S mitigations over open high+ threats</h2>
+<table><tr><th>key</th><th>product</th><th>threat</th><th>severity</th>
+<th>likelihood</th><th>impact</th><th>status</th></tr>{rows_threats}</table>
+<h2>Quick wins — class-closing XS/S mitigations over unmitigated high/critical threats</h2>
 <table><tr><th>product</th><th>mitigation</th><th>effort</th><th>covers</th></tr>
 {rows_wins}</table>
 <h2>Products by open threats</h2>
 <table><tr><th>product</th><th>models</th><th>threats</th><th>open</th>
-<th>open high+</th></tr>{rows_products}</table>
+<th>open critical</th><th>open high</th></tr>{rows_products}</table>
 </body></html>"""
 
 

@@ -40,13 +40,16 @@ downstream tooling can parse them with regex.
 ## 9. Attack scenarios
 
 ## 10. Tenant boundaries
+
+## 11. Risk ratings
 ```
 
 A consumer that only needs the threat table can regex for `^## 4\. Threats$`
-and read until the next `^## `. Sections 8, 9, and 10 are optional and
+and read until the next `^## `. Sections 8, 9, 10, and 11 are optional and
 additive: older threat models may omit them, and consumers must tolerate
 their absence. Section 10 applies **only to multi-tenant services** —
-single-tenant targets never carry it.
+single-tenant targets never carry it. Section 11 is present exactly when
+section 4 carries OWASP-rated threats, and the renderer writes it.
 
 **Deterministic gate:** python3 -m traust.cli reporting lint enforces this contract
 (sections, table columns, enums, the coverage invariant, ID stability,
@@ -128,6 +131,30 @@ process memory", "unauth network → authenticated session").
 Markdown table. **This is the threat model proper.** One row per
 actor-wants-outcome pair, at the abstraction level where it survives a patch.
 
+Threats are rated with the **OWASP Risk Rating Methodology** (see
+[Scoring guide](#scoring-guide)). A rated model's table carries
+`severity | likelihood | impact` where legacy models carry
+`impact | likelihood`:
+
+| id | threat | actor | surface | asset | severity | likelihood | impact | status | controls | evidence | attack_refs |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+
+- `severity` ∈ {`critical`, `high`, `medium`, `low`, `note`}, or
+  `unrated` for a threat whose rating hasn't been done yet.
+- `likelihood`: `<level> <score>`, e.g. `medium 4.375`.
+- `impact`: `<level> <score> <basis>`, e.g. `high 7.25 technical`.
+- An `unrated` row writes its legacy labels as `legacy <label>`
+  (`legacy possible`, `legacy critical`).
+
+You never type these cells. You author the factor scores in the JSON
+(`risk_rating`), `traust reporting rate-threats` computes the scores,
+levels and severity, and `render` writes the table and section 11. The
+linter recomputes every rating from section 11 and fails a row that
+disagrees.
+
+The legacy table below is what models written before the OWASP rating
+carry. It stays valid until the model is next updated:
+
 | id | threat | actor | surface | asset | impact | likelihood | status | controls | evidence | attack_refs |
 |---|---|---|---|---|---|---|---|---|---|---|
 
@@ -161,15 +188,17 @@ multi-tenant services that carry a section 10:
   actor first; scoring reads the first entry.
 - `surface`: Which entry point(s) from section 3 this threat traverses.
 - `asset`: Which asset(s) from section 2 this threat compromises.
-- `impact` ∈ {`low`, `medium`, `high`, `critical`, `existential`}.
-- `likelihood` ∈ {`very_rare`, `rare`, `possible`, `likely`,
-  `almost_certain`}.
+- `impact` (legacy tables only) ∈ {`low`, `medium`, `high`, `critical`,
+  `existential`}.
+- `likelihood` (legacy tables only) ∈ {`very_rare`, `rare`, `possible`,
+  `likely`, `almost_certain`}.
 - `status` ∈ {`unmitigated`, `partially_mitigated`, `mitigated`,
   `risk_accepted`}.
 - `controls`: Current mitigations, or `none`.
 - `evidence`: CVE IDs, issue links, pentest finding IDs, or git commit
   hashes that **instantiate** this threat. May be empty. **Evidence raises
-  likelihood; it is not the threat.**
+  likelihood (the awareness, ease-of-discovery and ease-of-exploit
+  factors); it is not the threat.**
 - `attack_refs` (default column for new emissions; absent only in legacy
   models): comma-separated MITRE ATT&CK technique IDs (`T1611`,
   `T1552.007`) naming the adversary behavior the threat describes. **Bounded selection, not narrative**: IDs must exist and be
@@ -190,8 +219,9 @@ multi-tenant services that carry a section 10:
   model is an isolation threat. The `/threat-register` roll-up reads the
   tags to rank the fleet's weakest tenant boundaries.
 
-Sort the table by (impact, likelihood) descending so the top rows are the
-priorities.
+Sort the table so the top rows are the priorities: by severity, then
+impact score, then likelihood score, all descending, with any `unrated`
+rows last. Legacy tables sort by (impact, likelihood) descending.
 
 ### 5. Deprioritized
 
@@ -235,7 +265,7 @@ original value):
 
 | date | changes | reason |
 |---|---|---|
-| YYYY-MM-DD | Retired T3, added T12, T5 likelihood likely→possible | review vs HEAD abc1234 |
+| YYYY-MM-DD | Retired T3, added T12, T5 likelihood 6.1→4.9 (auth now required) | review vs HEAD abc1234 |
 ```
 
 ### 8. Recommended mitigations
@@ -266,7 +296,7 @@ table consumer, not just the linter.
 
 Optional, additive: older files may omit it, and consumers must tolerate its
 absence. **New emissions should include it** for the top 3-5 threats by
-impact × likelihood. This is the narrative layer for humans — the tables
+severity. This is the narrative layer for humans — the tables
 above remain the machine contract.
 
 One subsection per scenario, heading anchored to the section 4 id:
@@ -333,33 +363,166 @@ is original to this repository).
   `analysis-results/isolation/<service-slug>/` directory of the full
   `/isolation-review` artifact when one exists.
 
+### 11. Risk ratings
+
+Written by `render` whenever section 4 carries a rated threat; never
+hand-authored. It opens with a one-line citation of the method, then has
+one subsection per rated threat, headed with its id and severity, holding
+every factor score and its reason:
+
+```markdown
+### T1 — high
+
+| factor | score | reason |
+|---|---|---|
+| skill_level | 5 | |
+| awareness | 9 | the decoder's overflow history is public |
+```
+
+Rows follow the method's order: the eight likelihood factors, the four
+technical-impact factors, then the four business-impact factors when the
+rating has them. `reason` may be empty. The linter recomputes each
+rating from these rows and fails it if the severity, levels or scores in
+section 4 don't follow.
+
 ---
 
 ## Scoring guide
 
-### Impact
+Threats are rated with the **OWASP Risk Rating Methodology** (OWASP
+Foundation, <https://owasp.org/www-community/OWASP_Risk_Rating_Methodology>;
+licence terms in `docs/external-dependencies.md`). This guide restates the
+method in original wording and
+adds how to apply it to a threat model. It doesn't reproduce the
+method's example scales; read the source for those. The arithmetic lives
+in `traust_contracts.v1.risk_rating`, and the harness does it for you.
 
-| value | means |
-|---|---|
-| `low` | Nuisance; no data or availability loss. |
-| `medium` | Limited data exposure or degraded availability for some users. |
-| `high` | Significant data exposure, integrity loss, or full availability loss. |
-| `critical` | Full compromise of a primary asset (RCE, auth bypass, data exfil at scale). |
-| `existential` | Compromise threatens the organization's continued operation. |
+### How the rating is built
 
-### Likelihood
+1. Score each factor below from **0 to 9**. Higher always means more
+   likely, or more harmful.
+2. **Likelihood** is the mean of the eight likelihood factors, and
+   **impact** is the mean of the four impact factors on the chosen basis.
+3. Each mean becomes a **level**: below 3 is `low`, below 6 `medium`,
+   otherwise `high`.
+4. **Severity** combines the two levels:
 
-| value | means |
-|---|---|
-| `very_rare` | Requires nation-state resources or an unlikely chain of preconditions. |
-| `rare` | Requires significant skill and a non-default configuration. |
-| `possible` | A motivated attacker with public tooling could plausibly do this. |
-| `likely` | The attack surface is reachable and the technique is well known; prior evidence exists in this or similar systems. |
-| `almost_certain` | Actively exploited in the wild, or trivially automatable against the default configuration. |
+   | impact ↓ / likelihood → | low | medium | high |
+   |---|---|---|---|
+   | **high** | medium | high | critical |
+   | **medium** | low | medium | high |
+   | **low** | note | low | medium |
 
-Evidence (past CVEs in the same surface, pentest findings, public exploit
-code) moves likelihood **up**. Existing controls move it **down**. Score the
-**residual** likelihood after current controls.
+Score the **residual** risk, after the controls the threat's `controls`
+cell names. A control earns its effect only where you can point to it.
+
+### Likelihood factors
+
+Who would attack (the threat agent):
+
+- `skill_level`: how skilled the most capable group likely to attempt
+  this is. A population that includes practised attackers scores high; a
+  threat only an unskilled user would try scores low.
+- `motive`: how much that group stands to gain. Direct payoff (money,
+  credentials, a foothold in other tenants) scores high; little or no
+  reward scores low.
+- `opportunity`: how little access and resource the attack needs. Nothing
+  beyond network reach scores high; a need for insider position, special
+  hardware or long preparation scores low.
+- `population_size`: how many people are in a position to try. The
+  `actor` column is the guide: `remote_unauth` is the whole internet and
+  scores high, while `local_admin` or `insider` is a small trusted group
+  and scores low.
+
+How exposed the weakness is (the vulnerability):
+
+- `ease_of_discovery`: how easily an attacker finds the weakness. Tooling
+  or a scanner that finds it scores high; finding it only with source
+  access and deep study scores low.
+- `ease_of_exploit`: how easily an attacker turns it into the outcome. A
+  public exploit or a trivially scriptable path scores high; a purely
+  theoretical path scores low.
+- `awareness`: how widely known this class of weakness is for this
+  surface. Past CVEs, advisories or public write-ups on the same surface
+  score high; an obscure, unpublished issue scores low.
+- `intrusion_detection`: how likely an attempt goes unnoticed. No
+  logging scores high; logged but unwatched scores somewhat lower; active
+  detection with response scores low.
+
+Evidence in the `evidence` cell raises `awareness`, `ease_of_discovery`
+and `ease_of_exploit`. It doesn't change who the attacker is. A control
+lowers the factor it acts on: authentication shrinks `population_size`
+and `opportunity`, and alerting lowers `intrusion_detection`.
+
+### Impact factors
+
+Technical impact (what the attack does to the system and its data):
+
+- `confidentiality`: the volume and sensitivity of what an attacker gets
+  to read. Anchor it on the section 2 `sensitivity` of the assets the
+  threat reaches: a critical asset exposed in bulk scores high.
+- `integrity`: the extent of data, configuration or code an attacker can
+  change, weighted by how much damage the change does.
+- `availability`: the share of the service an attacker can take down, and
+  how much users depend on that part.
+- `accountability`: whether the attacker's actions can be traced back to
+  them. Actions nobody can attribute score high; actions tied to a named
+  identity score low.
+
+Business impact (what the attack costs the organization):
+
+- `financial`: direct and recovery cost.
+- `reputation`: damage to trust in the product or the organization.
+- `non_compliance`: exposure to regulatory or contractual breach. Use the
+  section 2 `regulatory_scope`.
+- `privacy`: how much personal information could be exposed.
+
+**Choosing the basis.** The method prefers business impact when you know
+it. Use `technical` unless the owner has told you the business stakes:
+bootstrap runs are technical, and interview runs are business when the
+owner answered the business questions. You may record business factors
+beside a technical basis. The basis decides which set sets the score.
+
+### Reasons
+
+Give a one-line reason (the rating's `rationale`, keyed by factor name)
+for every factor that evidence, a control or an owner statement moved.
+Leave the others empty. A reviewer should be able to check each unusual
+score without re-running the analysis.
+
+### Authoring a rating in the JSON
+
+Write the factors, the basis and the reasons, and nothing derived:
+
+```json
+"risk_rating": {
+  "method": "owasp-risk-rating",
+  "likelihood": {"factors": {"skill_level": 5, "motive": 2, "opportunity": 7,
+    "population_size": 1, "ease_of_discovery": 3, "ease_of_exploit": 6,
+    "awareness": 9, "intrusion_detection": 2}},
+  "impact": {"basis": "technical", "technical": {"confidentiality": 9,
+    "integrity": 7, "availability": 5, "accountability": 8}},
+  "rationale": {"awareness": "the decoder's overflow history is public"}
+}
+```
+
+Then run `python3 -m traust.cli reporting rate-threats <repo>-threat-model.json`.
+It fills in every score, level and severity. `validate` rejects a
+rating whose derived values disagree with its factors, so never edit
+them by hand. A rated threat carries no legacy `impact` or `likelihood`.
+
+### Models rated before the OWASP method
+
+Older models carry the legacy labels (impact `low`..`existential`,
+likelihood `very_rare`..`almost_certain`). Those labels were not a
+published standard and don't convert to OWASP scores. **Any pass that
+writes a new version of a model (`update`, or `review --apply`) rates
+every threat that lacks `risk_rating` and drops its legacy labels.** The
+whole model moves at once, so a table never mixes the two scales for
+long. Until then, fleet roll-ups order legacy threats beside rated ones
+with a fixed crosswalk (`traust_engine.reporting.threat_rating`) and mark
+them `legacy-crosswalk`. That crosswalk orders threats; it isn't a
+rating.
 
 ---
 
@@ -368,11 +531,36 @@ code) moves likelihood **up**. Existing controls move it **down**. Score the
 ```markdown
 ## 4. Threats
 
-| id | threat | actor | surface | asset | impact | likelihood | status | controls | evidence | attack_refs |
-|---|---|---|---|---|---|---|---|---|---|---|
-| T1 | Memory corruption leading to RCE via untrusted audio file parsing | remote_unauth | dr_wav/dr_flac decoders | host process integrity | critical | likely | unmitigated | none | CVE-2026-29022, CVE-2025-14369 | T1203 |
-| T2 | Denial of service via resource exhaustion on decode | remote_unauth | dr_flac decoder | service availability | medium | likely | unmitigated | none | CVE-2025-14369 | T1499 |
-| T3 | Supply-chain compromise of vendored single-header dependency | supply_chain | build pipeline | host process integrity | critical | rare | partially_mitigated | pinned commit | | T1195.001 |
+| id | threat | actor | surface | asset | severity | likelihood | impact | status | controls | evidence | attack_refs |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| T1 | Memory corruption leading to RCE via untrusted audio file parsing | remote_unauth | dr_wav/dr_flac decoders | host process integrity | critical | high 7.25 | high 8 technical | unmitigated | none | CVE-2026-29022, CVE-2025-14369 | T1203 |
+| T3 | Supply-chain compromise of vendored single-header dependency | supply_chain | build pipeline | host process integrity | high | medium 4.25 | high 8.25 technical | partially_mitigated | pinned commit |  | T1195.001 |
+| T2 | Denial of service via resource exhaustion on decode | remote_unauth | dr_flac decoder | service availability | medium | high 6.375 | low 2.5 technical | unmitigated | none | CVE-2025-14369 | T1499 |
+
+<!-- sections 5-10 omitted -->
+
+## 11. Risk ratings
+
+Rated with the [OWASP Risk Rating Methodology](https://owasp.org/www-community/OWASP_Risk_Rating_Methodology) (OWASP Foundation). Each factor is scored 0-9; likelihood and impact are the means of their factors.
+
+### T1 — critical
+
+| factor | score | reason |
+|---|---|---|
+| skill_level | 6 |  |
+| motive | 5 |  |
+| opportunity | 8 |  |
+| population_size | 9 | any uploader on the internet |
+| ease_of_discovery | 7 |  |
+| ease_of_exploit | 6 |  |
+| awareness | 9 | two public CVEs in these decoders |
+| intrusion_detection | 8 |  |
+| confidentiality | 9 |  |
+| integrity | 9 |  |
+| availability | 7 |  |
+| accountability | 7 |  |
+
+<!-- T3 and T2 follow in the same form -->
 ```
 
 T1 stays in the model after both CVEs are patched: attackers will still send

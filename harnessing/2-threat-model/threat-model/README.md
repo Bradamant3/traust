@@ -108,7 +108,7 @@ cold.
 Use when a threat model already exists and the code has moved on
 (`<repo>-threat-model.md`, or the legacy `THREAT_MODEL.md`, which is
 renamed to the canonical form if the review is applied). The
-skill diffs the checkout against the SHA in the model's provenance, re-scores
+skill diffs the checkout against the SHA in the model's provenance, re-rates
 only what changed (new surface, stale threats, implemented mitigations,
 invalidated assumptions — weighing newer pipeline artifacts by assurance),
 reports the drift, and then asks whether to apply the changes:
@@ -184,7 +184,7 @@ python3 -m traust.cli reporting lint analysis-results/findings/<product>/.
 Evaluated against the ProdSec threat-modeling-guild module (2026-07; the
 comparison drove the v0.33.0 additions — validator gate, review/update/pr
 modes, attack scenarios + executive summary, `--context` ingestion, actor
-landscape, data-classification columns, conditional LINDDUN overlay), four
+landscape, data-classification columns, conditional LINDDUN overlay), three
 guild ideas were rejected on purpose. Do not reintroduce them casually:
 
 - **Per-threat `file:line` code references** — conflict with the
@@ -194,8 +194,6 @@ guild ideas were rejected on purpose. Do not reintroduce them casually:
 - **Narrative-first output with optional structure** — downstream parsers
   consume the schema; the attack-scenarios section delivers the story
   without surrendering the contract.
-- **Coarse high/medium/low likelihood** — the five-level calibrated,
-  evidence-anchored scale is strictly better.
 - **Broad `allowed-tools` (Bash + WebFetch)** — the safety preamble and
   read-only discipline are non-negotiable, especially with subagents
   inheriting constraints verbatim.
@@ -205,7 +203,9 @@ guild ideas were rejected on purpose. Do not reintroduce them casually:
 Derivative work of the `threat-model` skill in
 **defending-code-reference-harness** (Copyright 2026 Anthropic PBC, Apache
 License 2.0 — see the harness root `NOTICE` and `LICENSES/Apache-2.0.txt`),
-ported into this harness at v0.23.0 and modified per `CHANGELOG.md`.
+ported into this harness at v0.23.0 and modified per `CHANGELOG.md`. The
+upstream skill's impact/likelihood scoring guide has been replaced by the
+OWASP Risk Rating Methodology (see References).
 
 ## References
 
@@ -213,4 +213,8 @@ ported into this harness at v0.23.0 and modified per `CHANGELOG.md`.
   https://shostack.org/files/papers/The_Four_Question_Framework.pdf
 - OWASP Threat Modeling Cheat Sheet —
   https://cheatsheetseries.owasp.org/cheatsheets/Threat_Modeling_Cheat_Sheet.html
+- OWASP Foundation, *OWASP Risk Rating Methodology* —
+  https://owasp.org/www-community/OWASP_Risk_Rating_Methodology. The threat
+  rating; reimplemented in original wording (licence terms:
+  `docs/external-dependencies.md`).
 - This repo's AGENTS.md "Security Testing Context" section.

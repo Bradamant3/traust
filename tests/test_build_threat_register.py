@@ -6,7 +6,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from build_threat_register import build
+from build_threat_register import SEVERITY_ORDER, build
+from traust_contracts.v1 import risk_rating as rr
+from traust_engine.reporting.render import render_threat_model
 
 MODEL = """# Threat Model: {name}
 
@@ -126,9 +128,21 @@ class TestBuild(unittest.TestCase):
         t1 = next(t for t in self.reg["threats"] if t["key"] == "prodA/svc:T1")
         self.assertEqual(t1["actors"], ["remote_unauth", "insider"])
 
-    def test_sorted_by_score_desc(self):
-        scores = [t["score"] for t in self.reg["threats"]]
-        self.assertEqual(scores, sorted(scores, reverse=True))
+    def test_sorted_by_severity_desc(self):
+        ranks = [SEVERITY_ORDER.index(t["severity"]) for t in self.reg["threats"]]
+        self.assertEqual(ranks, sorted(ranks))
+
+    def test_legacy_labels_are_ordered_by_the_crosswalk_and_say_so(self):
+        t1 = next(t for t in self.reg["threats"] if t["key"] == "prodA/svc:T1")
+        t2 = next(t for t in self.reg["threats"] if t["key"] == "prodA/svc:T2")
+        # critical/likely -> high/high -> critical; low/possible -> low/medium -> low
+        self.assertEqual((t1["severity"], t1["severity_source"]), ("critical", "legacy-crosswalk"))
+        self.assertEqual(t2["severity"], "low")
+        self.assertEqual((t1["impact"], t1["likelihood"]), ("critical", "likely"))
+        self.assertNotIn("score", t1)
+        md = (self.root / "threat-register" / "threat-register.md").read_text(encoding="utf-8")
+        self.assertIn("critical (legacy crosswalk)", md)
+        self.assertIn("Rated with OWASP: 0 of 4 threats", md)
 
     def test_quick_wins(self):
         wins = self.reg["quick_wins"]
@@ -151,7 +165,7 @@ class TestBuild(unittest.TestCase):
         self.assertEqual(cuts["findings"]["models"], 2)
         self.assertEqual(cuts["findings"]["threats"], 4)
         self.assertEqual(cuts["findings"]["open"], 2)
-        self.assertEqual(cuts["findings"]["open_critical_plus"], 2)
+        self.assertEqual(cuts["findings"]["open_critical"], 2)
         self.assertEqual(cuts["oss-findings"]["models"], 0)
         md = (self.root / "threat-register" / "threat-register.md").read_text(encoding="utf-8")
         self.assertIn("## Ownership cuts", md)
@@ -237,3 +251,79 @@ class TestIsolationWiring(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def rated_model(name):
+    """A model rated with the OWASP Risk Rating Methodology, rendered the way
+    the skill emits it (authored JSON -> engine render)."""
+    likelihood = dict.fromkeys(rr.LIKELIHOOD_FACTORS, 7)
+    technical = dict.fromkeys(rr.TECHNICAL_IMPACT_FACTORS, 7)
+    return render_threat_model(
+        {
+            "system": name,
+            "provenance": {"mode": "bootstrap", "date": "2026-09-30", "target": "x @ abc1234"},
+            "entry_points": [
+                {
+                    "entry_point": "api",
+                    "description": "REST API",
+                    "trust_boundary": "unauth -> auth",
+                    "reachable_assets": "data",
+                }
+            ],
+            "threats": [
+                {
+                    "id": "T1",
+                    "threat": "Tenant data read via api authz gap",
+                    "actor": ["remote_auth"],
+                    "surface": "api",
+                    "asset": "data",
+                    "risk_rating": rr.rate(likelihood, technical),
+                    "status": "unmitigated",
+                    "controls": "none",
+                    "evidence": [],
+                    "attack_refs": ["T1190"],
+                }
+            ],
+            "mitigations": [
+                {
+                    "mitigation": "enforce tenant scoping in one middleware",
+                    "threat_ids": "T1",
+                    "closes_class": "yes",
+                    "effort": "S",
+                }
+            ],
+        }
+    )
+
+
+class TestOwaspRated(unittest.TestCase):
+    """A re-rated model sits in the same register as legacy ones."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        make_portfolio(self.root)
+        d = self.root / "findings" / "prodC" / "rated"
+        d.mkdir(parents=True)
+        (d / "rated-threat-model.md").write_text(rated_model("rated"), encoding="utf-8")
+        self.reg = build(self.root, self.root / "threat-register")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_rated_threat_carries_its_owasp_rating(self):
+        t = next(t for t in self.reg["threats"] if t["key"] == "prodC/rated:T1")
+        self.assertEqual(
+            (t["severity"], t["severity_source"], t["impact_score"], t["likelihood_score"]),
+            ("critical", "owasp", 7.0, 7.0),
+        )
+        self.assertEqual(self.reg["totals"]["by_severity_source"]["owasp"], 1)
+
+    def test_rated_threat_ranks_ahead_of_a_crosswalked_one_of_the_same_severity(self):
+        keys = [t["key"] for t in self.reg["threats"]]
+        self.assertLess(keys.index("prodC/rated:T1"), keys.index("prodA/svc:T1"))
+
+    def test_rated_threat_counts_toward_quick_wins(self):
+        wins = [w for w in self.reg["quick_wins"] if w["product"] == "prodC"]
+        self.assertEqual(len(wins), 1)
+        self.assertEqual(wins[0]["max_severity"], "critical")

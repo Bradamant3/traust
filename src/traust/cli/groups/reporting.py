@@ -143,11 +143,60 @@ def add_render_args(ap) -> None:
         type=Path,
         help="Write markdown to file (default: stdout)",
     )
+    ap.add_argument(
+        "--allow-section-loss",
+        action="store_true",
+        help="Threat models: overwrite --out even if the new rendering empties or "
+        "drops a section the existing file has (an intended removal)",
+    )
+
+
+def _section_bodies(markdown: str) -> dict[str, bool]:
+    """`## ` section heading -> whether it carries any content.
+
+    A section counts as empty when it holds nothing but a table header and
+    separator, or the renderer's `_not recorded_` / `_none_` placeholders.
+    """
+    from traust_engine.reporting.lint import parse_sections
+
+    out = {}
+    for heading, body in parse_sections(markdown):
+        lines = [line.strip() for line in body if line.strip()]
+        rows = [line for line in lines if line.startswith("|")]
+        prose = [line for line in lines if not line.startswith("|")]
+        has_rows = len(rows) > 2  # header + separator + at least one row
+        has_prose = any(line not in ("_not recorded_", "_none_") for line in prose)
+        out[heading] = has_rows or has_prose
+    return out
+
+
+def lost_sections(existing: str, rendered: str) -> list[str]:
+    """Sections the existing threat model fills that the new rendering drops
+    or empties. Rendering a threat model whose JSON is missing members the
+    Markdown has would otherwise erase them silently -- which is what the
+    2026-09-20 backfill's three-member JSON did on the first write-back."""
+    before, after = _section_bodies(existing), _section_bodies(rendered)
+    return [h for h, filled in before.items() if filled and not after.get(h, False)]
 
 
 def call_render(engine, args) -> int:
     md = engine.reporting.render(args.report)
     if args.out:
+        if (
+            args.report.name.endswith("-threat-model.json")
+            and args.out.exists()
+            and not args.allow_section_loss
+        ):
+            lost = lost_sections(args.out.read_text(encoding="utf-8"), md)
+            if lost:
+                print(
+                    f"render: refusing to overwrite {args.out}: the new rendering drops "
+                    f"or empties {lost}. The JSON is missing what the Markdown has -- "
+                    "complete the JSON first, or pass --allow-section-loss if the "
+                    "removal is intended.",
+                    file=sys.stderr,
+                )
+                return 1
         args.out.write_text(md, encoding="utf-8")
         print(f"render: wrote {args.out}")
     else:
@@ -159,6 +208,69 @@ RENDER = OpSpec(
     add_args=add_render_args,
     call=call_render,
     help="Render a validated security report JSON to Markdown",
+)
+
+
+def add_rate_threats_args(ap) -> None:
+    ap.add_argument("model", type=Path, help="Path to a <repo>-threat-model.json artifact")
+    ap.add_argument(
+        "--check",
+        action="store_true",
+        help="Report derived values that disagree with their factors; write nothing",
+    )
+
+
+def call_rate_threats(_engine, args) -> int:
+    """Fill each OWASP risk_rating's derived values from its factors.
+
+    The author scores the factors (and optionally the basis and one reason
+    per factor); the means, levels and severity are arithmetic, so this
+    computes them with traust_contracts.v1.risk_rating rather than leaving
+    them to the author. Threats without a risk_rating are left alone.
+    """
+    from traust_contracts.v1 import risk_rating
+
+    document = json.loads(args.model.read_text(encoding="utf-8"))
+    changed, failed = [], []
+    for threat in document.get("threats") or []:
+        rating = threat.get("risk_rating")
+        if not rating:
+            continue
+        tid = threat.get("id", "?")
+        impact = rating.get("impact") or {}
+        try:
+            rebuilt = risk_rating.rate(
+                (rating.get("likelihood") or {}).get("factors") or {},
+                impact.get("technical") or {},
+                impact.get("business"),
+                basis=impact.get("basis"),
+                rationale=rating.get("rationale"),
+            )
+        except ValueError as exc:
+            failed.append(f"{tid}: {exc}")
+            continue
+        if rebuilt != rating:
+            changed.append(tid)
+            threat["risk_rating"] = rebuilt
+    for line in failed:
+        print(f"rate-threats: {line}", file=sys.stderr)
+    if args.check:
+        for tid in changed:
+            print(f"rate-threats: {tid} derived values disagree with its factors")
+        return 1 if (changed or failed) else 0
+    if changed and not failed:
+        args.model.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+    print(
+        f"rate-threats: {len(changed)} rating(s) updated, {len(failed)} error(s)"
+        + (" -- nothing written" if failed else "")
+    )
+    return 1 if failed else 0
+
+
+RATE_THREATS = OpSpec(
+    add_args=add_rate_threats_args,
+    call=call_rate_threats,
+    help="Fill OWASP risk ratings' scores, levels and severity from their factors",
 )
 
 

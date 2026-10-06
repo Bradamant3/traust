@@ -60,7 +60,8 @@ records a sha256 of every finding's claim fields into
 validation, and `build_cumulative.py` refuses to rebuild from a baseline
 whose claims drifted. Sanctioned appends (follow-up findings) are pinned on
 the next run; in-place revision requires `validation_status: corrected`
-plus an explicit `--rebaseline`.
+plus an explicit `--rebaseline` with `--ticket` and `--rationale`, recorded
+in the layer as a ledger restatement (prior hash, actor, ticket, reason).
 
 > Naming matters: the cumulative file is deliberately named
 > `-findings-current`, NOT `-security-audit-*`, so the portfolio roll-ups
@@ -292,9 +293,12 @@ events, which need none.
    are never overwritten. **If `record` refuses** (hash mismatch), the
    audit report was edited in place: stop and surface it to the user —
    either the report must be restored from git, or, for a finding
-   legitimately revised under `validation_status: corrected`, re-run with
-   `--rebaseline <id>`. Do not proceed to ingestion over a tampered
-   baseline; `build_cumulative.py` would refuse anyway.
+   legitimately revised under `validation_status: corrected`, the **user**
+   re-runs with `--rebaseline <id> --ticket <change record> --rationale
+   "<why the claim changed>"`. It is a human decision recorded under their
+   identity, so never supply a ticket or rationale on their behalf. Do not
+   proceed to ingestion over a tampered baseline; `build_cumulative.py`
+   would refuse anyway.
 
 ### Phase 2 — Ingest each source
 

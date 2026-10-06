@@ -641,8 +641,11 @@ hashed). Three properties follow:
    python3 -m traust.cli route regressions) get pinned on the next run; an existing
    hash is never overwritten — except for a finding explicitly named with
    `--rebaseline` whose `validation_status` is `corrected`, the one
-   sanctioned in-place revision path. The revision is thereby visible and
-   attributable instead of silent.
+   sanctioned in-place revision path. It needs `--ticket` and
+   `--rationale` and is written as a ledger restatement (`reason:
+   baseline_rewrite`) carrying the prior hash, the verified actor and the
+   ticket (the report digest is restated with it when the report changed),
+   so the revision is visible and attributable instead of silent.
 2. **`validation_status` is deliberately excluded** from the hash: it
    changes via the sanctioned human/execution paths, and the ledger —
    not the file — is the authority on current belief anyway.

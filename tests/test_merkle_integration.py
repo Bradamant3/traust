@@ -11,7 +11,6 @@ import unittest
 from pathlib import Path
 
 import jsonschema
-import pytest
 from traust_engine.ledger import (
     compute_event_id,
     verify_merkle_integrity,
@@ -24,7 +23,7 @@ def stamp_layer(layer: dict) -> None:
     with tempfile.TemporaryDirectory() as td:
         p = Path(td) / "fixture-findings-layer.json"
         p.write_text(json.dumps(layer), encoding="utf-8")
-        LedgerClient(token="test-token", data_dir=td).sign("fixture-findings-layer")
+        LedgerClient(data_dir=td).sign("fixture-findings-layer")
         stamped = json.loads(p.read_text())
     layer["metadata"] = stamped["metadata"]
 
@@ -301,7 +300,6 @@ class TestWritePathMerkleStamp(unittest.TestCase):
         self.assertEqual(layer["metadata"]["merkle_size"], 2)
         self.assertEqual(_cross(layer).errors, [])
 
-    @pytest.mark.requires_ledger
     def test_emit_validation_append_produces_valid_merkle(self):
         from traust.cli.emit_validation_ledger_events import append_to_layer
 
@@ -360,7 +358,6 @@ class TestWritePathMerkleStamp(unittest.TestCase):
             self.assertEqual(result.errors, [])
 
 
-@pytest.mark.requires_ledger
 class TestWritePathIntegration(unittest.TestCase):
     def test_build_cumulative_stamps_layer(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -387,6 +384,8 @@ class TestWritePathIntegration(unittest.TestCase):
                     str(layer_path),
                     "--generated-at",
                     GENERATED_AT,
+                    "--findings-root",
+                    str(tmp_path),
                 ],
                 capture_output=True,
                 text=True,
@@ -446,6 +445,8 @@ class TestWritePathIntegration(unittest.TestCase):
                 str(tmp_path / "lint.json"),
                 "--recorded-at",
                 GENERATED_AT,
+                "--findings-root",
+                str(tmp_path),
             ]
             proc = subprocess.run(cmd, capture_output=True, text=True)
             self.assertEqual(proc.returncode, 0, proc.stderr)

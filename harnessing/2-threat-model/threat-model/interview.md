@@ -44,8 +44,8 @@ working notes:
   in code.
 
 The final model file does not include the tags inline (they would
-clutter the table), but every `[Owner-states]` fact that affects a likelihood
-or status score MUST be listed in `## 6. Open questions` as a follow-up to
+clutter the table), but every `[Owner-states]` fact that affects a rating
+factor or a status MUST be listed in `## 6. Open questions` as a follow-up to
 verify. This is how an interview-mode threat model stays honest about what is
 asserted versus observed.
 
@@ -144,18 +144,30 @@ this apply? Is the actor right?" Then ask "What's missing?"
 
 ### Q3 — What are we going to do about it?
 
-Goal: fill `impact`, `likelihood`, `status`, `controls` for every section 4 row, and
-fill `## 5. Deprioritized`.
+Goal: fill `risk_rating`, `status` and `controls` for every section 4 row,
+and fill `## 5. Deprioritized`. Ratings use the OWASP Risk Rating
+Methodology; the factors are defined in the schema.md
+[Scoring guide](schema.md#scoring-guide).
 
 For each threat row, ask:
 
 - "What's in place today that stops or limits this?" → `controls`. Verify in
-  code where possible (`[Code-verified]` vs `[Owner-states]`).
-- "If it happened anyway, how bad is it?" → `impact` (read them the scale
-  from `schema.md` if needed).
-- "How likely is it that someone tries and succeeds, given the controls?" →
-  `likelihood`. If past incidents, CVEs, or pentest findings exist for this
-  surface, list them in `evidence` and weight likelihood up.
+  code where possible (`[Code-verified]` vs `[Owner-states]`). Controls lower
+  the factors they act on.
+- "Who could try this, and what would they get out of it?" → the
+  threat-agent factors (`skill_level`, `motive`, `opportunity`,
+  `population_size`).
+- "How hard is the weakness to find and use, and would you notice the
+  attempt?" → the vulnerability factors. If past incidents, CVEs, or pentest
+  findings exist for this surface, list them in `evidence` and raise
+  `awareness`, `ease_of_discovery` and `ease_of_exploit`.
+- "If it happened anyway, what would it cost you in money, reputation,
+  compliance and personal data?" → the business-impact factors. When the
+  owner can answer this, rate on the **business** basis; score the technical
+  factors too, from the code. When they can't, use the technical basis.
+
+Record a one-line reason for every factor the owner's answer moved, and
+tag it `[Owner-states]` in your notes.
 - "Is this mitigated, partially mitigated, unmitigated, or are you accepting
   the risk?" → `status`. **If the owner says "risk accepted", capture their
   reason verbatim** and put the row in section 5 with that reason.
@@ -176,14 +188,15 @@ last one.
 
 Goal: validate before writing.
 
-- Read the draft section 4 table back to the owner, sorted by impact × likelihood.
+- Run `python3 -m traust.cli reporting rate-threats` on the draft JSON, then
+  read the section 4 table back to the owner, sorted by severity.
   Ask: **"Does the top of this list match your gut? Is anything ranked too
   high or too low?"** Adjust.
 - Read the top 3-5 attack scenarios (section 9 drafts) back as stories —
   "here's how I'd tell your leadership this could play out" — and ask:
   **"Is that how it would actually go? What did I get wrong about your
   environment?"** Narratives surface wrong assumptions that table rows
-  hide; corrections flow back into the section 4 scores.
+  hide; corrections flow back into the rating factors.
 - Ask: **"Is there anything you've been worried about that isn't on this
   list?"** Add it.
 - Check coverage yourself: for every row in section 3, the `entry_point` name must
@@ -221,11 +234,11 @@ python3 -m traust.cli reporting lint <target-dir>/<model-file>
 Then hand back to the user:
 
 1. Path to the file.
-2. Top 5 threats by impact × likelihood, one line each.
+2. Top 5 threats by severity, one line each.
 3. The section 8 recommended mitigations, top 3 by (closes_class, effort asc).
-4. Every `[Owner-states]` claim that affects a score, as a follow-up list.
+4. Every `[Owner-states]` claim that affects a rating factor, as a follow-up list.
    Format each as a section 6 bullet: `- [Owner-states] <claim>. Affects: <Tn
    field>. Verify by: <suggested check>.`
-5. If `--seed` was provided: a short diff summary ("added T7-T9, downgraded T2
-   likelihood from likely → possible because owner confirmed input is
-   size-capped").
+5. If `--seed` was provided: a short diff summary ("added T7-T9, lowered T2
+   ease_of_exploit 7 → 3 (likelihood 5.9 → 5.4) because owner confirmed input
+   is size-capped").

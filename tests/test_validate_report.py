@@ -1018,7 +1018,7 @@ def _stamp_via_client(layer: dict) -> dict:
     with tempfile.TemporaryDirectory() as td:
         p = Path(td) / "fixture-findings-layer.json"
         p.write_text(json.dumps(layer), encoding="utf-8")
-        LedgerClient(token="test-token", data_dir=td).sign("fixture-findings-layer")
+        LedgerClient(data_dir=td).sign("fixture-findings-layer")
         return json.loads(p.read_text())
 
 
@@ -1140,14 +1140,23 @@ class TestLayerValidation(unittest.TestCase):
         self.assertFalse(any("severity" in e for e in result.errors), result.errors)
 
     def test_severity_override_requires_rationale(self):
-        def mutate(l):
-            l["events"][0]["disposition"] = {"severity": "low"}
-            l["events"][0]["rationale"] = ""
-            l["events"][0]["event_id"] = compute_event_id(
-                l["events"][0]["source"]["ref"], l["events"][0]["finding_ref"], None, None
-            )
+        from traust_ledger.client import LedgerError
 
-        result = self._mutate(mutate)
+        layer = copy.deepcopy(_valid_layer())
+        ev = layer["events"][0]
+        ev["disposition"] = {"severity": "low"}
+        ev["event_id"] = compute_event_id(ev["source"]["ref"], ev["finding_ref"], None, None)
+
+        # The ledger refuses to sign an empty rationale (schema minLength) ...
+        unsignable = copy.deepcopy(layer)
+        unsignable["events"][0]["rationale"] = ""
+        with self.assertRaises(LedgerError):
+            _stamp_via_client(unsignable)
+
+        # ... so the harness rule is exercised on a layer emptied after signing.
+        stamped = _stamp_via_client(layer)
+        stamped["events"][0]["rationale"] = ""
+        result = _layer_cross(stamped)
         self.assertTrue(any("requires a rationale" in e for e in result.errors), result.errors)
 
     def test_machine_false_positive_allowed_without_ldap(self):

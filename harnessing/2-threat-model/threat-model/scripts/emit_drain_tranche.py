@@ -77,8 +77,10 @@ ROW_FIELDS = (
 _DISPATCH = {
     "diff-scan-quarterly": "/vuln-scan <clone> --diff",
     "diff-scan": "/vuln-scan <clone> --diff",
-    "threat-model-quarterly": "/threat-model review <clone> --auto",
-    "threat-model-review": "/threat-model review <clone> --auto",
+    # --apply-ratings: report-only except OWASP ratings for unrated threats,
+    # which the check-up writes (review.md R6; decided 2026-10-01).
+    "threat-model-quarterly": "/threat-model review <clone> --auto --apply-ratings",
+    "threat-model-review": "/threat-model review <clone> --auto --apply-ratings",
 }
 
 

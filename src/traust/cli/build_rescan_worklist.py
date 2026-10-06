@@ -1220,7 +1220,7 @@ def threat_model_quarterly_rows(entries: list[dict], already: set, stale_days: i
                     f"threat-model calendar backstop: model is "
                     f"{age}d old (>{stale_days}d) and no change-"
                     f"triggered re-model fired — /threat-model "
-                    f"review --auto"
+                    f"review --auto --apply-ratings"
                 ),
                 "status": e.get("status"),
                 "C": e.get("C"),
@@ -2431,7 +2431,8 @@ def main(argv=None) -> int:
                             f"{change} bump over "
                             f"{ev.get('release_previous') or '?'} — "
                             + (
-                                "/threat-model review --auto against the existing model"
+                                "/threat-model review --auto --apply-ratings "
+                                "against the existing model"
                                 if tm_path
                                 else "no HEAD model exists yet: /threat-model bootstrap"
                             )

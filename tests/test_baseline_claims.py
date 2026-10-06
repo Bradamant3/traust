@@ -9,7 +9,6 @@ import unittest
 from pathlib import Path
 
 import baseline_claims
-import pytest
 from traust_engine.reporting.validate import (
     ValidationResult,
     compute_claim_hash,
@@ -73,7 +72,6 @@ class TestClaimHash(unittest.TestCase):
         self.assertNotEqual(compute_claim_hash(a), compute_claim_hash(b))
 
 
-@pytest.mark.requires_ledger
 class TestRecord(unittest.TestCase):
     def test_record_adds_and_is_idempotent(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -119,12 +117,24 @@ class TestRecord(unittest.TestCase):
             self.assertEqual(baseline_claims.record(ap, lp, {f["id"]}), 1)
             corrected = _finding(severity="low", validation_status="corrected")
             ap.write_text(json.dumps(_audit([corrected])))
-            self.assertEqual(baseline_claims.record(ap, lp, {f["id"]}), 0)
-            hashes = json.loads(lp.read_text())["metadata"]["claim_hashes"]
-            self.assertEqual(hashes[f["id"]], compute_claim_hash(corrected))
+            # a corrected rebaseline overwrites a signed hash: it must be ticketed
+            self.assertEqual(baseline_claims.record(ap, lp, {f["id"]}), 1)
+            rationale = "Severity revised to low after reproduction showed no auth bypass."
+            self.assertEqual(
+                baseline_claims.record(ap, lp, {f["id"]}, ticket="XWING-1234", rationale=rationale),
+                0,
+            )
+            layer = json.loads(lp.read_text())
+            self.assertEqual(
+                layer["metadata"]["claim_hashes"][f["id"]], compute_claim_hash(corrected)
+            )
+            (restated,) = [e for e in layer["events"] if e.get("restatement")]
+            self.assertEqual(restated["restatement"]["target"], "claim_hashes")
+            self.assertEqual(restated["restatement"]["before"], {f["id"]: compute_claim_hash(f)})
+            self.assertEqual(restated["restatement"]["authority"]["ticket"], "XWING-1234")
+            self.assertEqual(restated["source"]["actor"]["identity"], "test@traust.local")
 
 
-@pytest.mark.requires_ledger
 class TestVerifyAndGates(unittest.TestCase):
     def _tampered(self, tmp):
         f = _finding()
@@ -196,8 +206,8 @@ class TestVerifyAndGates(unittest.TestCase):
             )
             # symlinked duplicate must be skipped
             (root / "dup").mkdir()
-            Path.symlink_to(
-                d1 / "repo-a-security-audit.json", root / "dup" / "repo-a-security-audit.json"
+            (root / "dup" / "repo-a-security-audit.json").symlink_to(
+                d1 / "repo-a-security-audit.json"
             )
 
             self.assertEqual(baseline_claims.sweep(root), 0)
