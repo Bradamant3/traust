@@ -1,6 +1,6 @@
 # Traust
 
-[![skillsaw grade](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fopenshift%2Ftraust%2Fmain%2F.skillsaw-badge.json)](https://skillsaw.org/)
+[![skillsaw grade](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ftraust-security%2Ftraust%2Fmain%2F.skillsaw-badge.json)](https://skillsaw.org/)
 
 Traust is an AI-native workflow engine for the automated security assessment of software. It equips adopters with a structured methodology to run consistent, repeatable multi-framework audits across repositories that include source code, container images, RPM packages, Kubernetes operators, or infrastructure as code (IaC). It provides machine triage of findings and live validation of exploits to drive remediation, recording every event in a signed, tamper-evident ledger. Traust is built to simplify the process of application security, with the ability to scale to hundreds of repositories across dozens of product releases if needed.
 
@@ -15,7 +15,7 @@ scripts/install_traust           # set up TRAUST_CONFIG_HOME from the config/ te
 scripts/install_traust --doctor  # confirm the install end to end
 ```
 
-Then start your agent from the harness root and type `/` to see available commands.
+Then start your agent from the workflow engine's root directory and type `/` to see available commands.
 
 - New here? → [docs/getting-started.md](docs/getting-started.md) — zero to first audit report
 - Requirements → [docs/requirements.md](docs/requirements.md)
@@ -61,7 +61,7 @@ This repository is the **agent-facing layer** of a five-component stack, not the
   traust-contracts   schemas · enums · shared models             (leaf)
 
   traust-sdk (Go)    typed SDK for non-Python consumers — imports the contracts,
-                          calls the harness; not a dependency of it
+                          calls the workflow engine; not a dependency of it
 ```
 
 - [traust-engine](https://github.com/traust-security/traust-engine)
@@ -87,11 +87,11 @@ This repository is the **agent-facing layer** of a five-component stack, not the
 
 ## Versioning
 
-The harness is versioned via the `VERSION` file using semantic versioning (`MAJOR.MINOR.PATCH`). At report time, the short git SHA is appended (e.g. `0.32.1-4dd9796`). See `AGENTS.md` for bump guidelines.
+The workflow engine is versioned via the `VERSION` file using semantic versioning (`MAJOR.MINOR.PATCH`). At report time, the short git SHA is appended (e.g. `0.32.1-4dd9796`). See `AGENTS.md` for bump guidelines.
 
 ## Security and authorisation
 
-All security testing performed by this harness is authorised. The `AGENTS.md` file establishes the following constraints:
+All security testing performed by this workflow engine is authorised. The `AGENTS.md` file establishes the following constraints:
 
 - Only analyse repositories the user has explicitly authorised
 - Analyse the exact branch or commit ref specified in the input data

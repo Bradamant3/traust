@@ -1,6 +1,6 @@
 # Docs
 
-A reader's map to the 34 documents in this directory. Three audiences — **operators** setting up and running the harness, **analysts** reading and acting on its output, and **contributors** changing the harness — are grouped separately below. Reference material shared across all three follows.
+A reader's map to the 34 documents in this directory. Three audiences — **operators** setting up and running the workflow engine, **analysts** reading and acting on its output, and **contributors** changing the workflow engine — are grouped separately below. Reference material shared across all three follows.
 
 ---
 
@@ -15,7 +15,7 @@ A reader's map to the 34 documents in this directory. Three audiences — **oper
 
 ---
 
-## Operators — running the harness
+## Operators — running the workflow engine
 
 For people deploying and operating Traust across a portfolio.
 
@@ -26,7 +26,7 @@ For people deploying and operating Traust across a portfolio.
 | [sla-policy.md](sla-policy.md) | Configuring remediation deadlines — SLAs are policy data, never code |
 | [model-routing.md](model-routing.md) | Which model does which role, the budget escalation ladder, and the registry contract |
 | [model-classes.md](model-classes.md) | Per-skill model assignments and what each class is for |
-| [external-dependencies.md](external-dependencies.md) | Every external tool the harness depends on and why |
+| [external-dependencies.md](external-dependencies.md) | Every external tool the workflow engine depends on and why |
 
 ---
 
@@ -41,14 +41,14 @@ For security engineers triaging findings, verifying exploitability, and tracking
 | [findings-routing.md](findings-routing.md) | How a finding gets from a producer report into the disposition ledger |
 | [disposition-ledger.md](disposition-ledger.md) | Design and rationale behind the tamper-evident findings ledger |
 | [validation-process.md](validation-process.md) | What a verdict must survive before it enters the ledger (trust gates, fail-closed stack) |
-| [error-model.md](error-model.md) | Type I / Type II error policy — how the harness handles false positives and negatives |
+| [error-model.md](error-model.md) | Type I / Type II error policy — how the workflow engine handles false positives and negatives |
 | [risk-rating-methodology.md](risk-rating-methodology.md) | How per-finding scores become portfolio risk metrics |
 | [reachability.md](reachability.md) | Reachability engines, what each may conclude, and per-language coverage |
 | [adversarial-content-doctrine.md](adversarial-content-doctrine.md) | The standing rule for any agent reading content it did not write (prompt-injection defence) |
 
 ---
 
-## Contributors — changing the harness
+## Contributors — changing the workflow engine
 
 For engineers editing skills, scripts, schemas, or any of the five component repos.
 
@@ -74,14 +74,14 @@ Lookup docs used across roles during normal work.
 |-----|----------------|
 | [skills.md](skills.md) | All 52 skills: description, stage, tier, slash command — *generated; regenerate with `python3 -m traust.cli build skills-reference`* |
 | [cli-reference.md](cli-reference.md) | Every `traust <group> <op>` command |
-| [graphs.md](graphs.md) | The six graphs the harness builds or reads: which question each answers and who consumes it |
-| [routers.md](routers.md) | The seven kinds of routing in the harness: what each does and which components implement it |
+| [graphs.md](graphs.md) | The six graphs the workflow engine builds or reads: which question each answers and who consumes it |
+| [routers.md](routers.md) | The seven kinds of routing in the workflow engine: what each does and which components implement it |
 | [sarif.md](sarif.md) | The SARIF 2.1.0 emitter and importer: field mappings in both directions |
 
 ---
 
 ## Notes
 
-- `continuous-scanning.md` — redirects to [continuous-operations.md](continuous-operations.md); kept to preserve inbound links.
+- [continuous-scanning.md](continuous-scanning.md) — redirects to [continuous-operations.md](continuous-operations.md); kept to preserve inbound links.
 - `storage-v1-ddl-model.md` and `skills.md` are generated files. Edits to them are overwritten on the next run.
 - The docs gate (`python3 -m traust.cli check docs-consistency`) enforces count assertions, dead links, enum discipline, and version sync. Run it after editing.
